@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import '../services/pdf_service.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -12,8 +14,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final PdfService pdfService = PdfService();
+
   String? selectedFileName;
   String? selectedFilePath;
+  int pageCount = 0;
 
   Future<void> pickPdf() async {
     final result = await FilePicker.platform.pickFiles(
@@ -30,9 +35,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       selectedFileName = file.name;
       selectedFilePath = file.path;
+      pageCount = pdfService.getPageCount(file.path!);
     });
 
-    debugPrint('Ausgewählte PDF: $selectedFilePath');
+    debugPrint("PDF: $selectedFileName");
+    debugPrint("Seiten: $pageCount");
   }
 
   Widget buildStartView() {
@@ -78,26 +85,24 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget buildPdfView() {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
-          ),
-          child: Row(
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          color: Colors.grey.shade200,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  selectedFileName ?? 'PDF',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+              Text(
+                "📄 Datei: ${selectedFileName ?? '-'}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
               ),
-              TextButton.icon(
-                onPressed: pickPdf,
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Andere PDF'),
+              const SizedBox(height: 6),
+              Text(
+                "📑 Seiten: $pageCount",
+                style: const TextStyle(fontSize: 16),
               ),
             ],
           ),
@@ -115,8 +120,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Easy PDF'),
+        title: const Text("Easy PDF"),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.folder_open),
+            onPressed: pickPdf,
+          ),
+        ],
       ),
       body: selectedFilePath == null
           ? buildStartView()
