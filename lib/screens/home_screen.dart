@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../services/pdf_service.dart';
+import '../widgets/pdf_information.dart';
 import '../widgets/pdf_toolbar.dart';
+import '../widgets/pdf_view_panel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +18,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? selectedFileName;
   String? selectedFilePath;
+
   int pageCount = 0;
+  int selectedPage = 1;
 
   Future<void> pickPdf() async {
     final result = await FilePicker.platform.pickFiles(
@@ -32,22 +33,40 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final file = result.files.single;
+    final filePath = file.path;
 
-    if (file.path == null) {
+    if (filePath == null) {
+      showMessage('Die ausgewählte Datei konnte nicht geöffnet werden.');
       return;
     }
 
-    final filePath = file.path!;
-    final pages = pdfService.getPageCount(filePath);
+    try {
+      final pages = pdfService.getPageCount(filePath);
 
-    setState(() {
-      selectedFileName = file.name;
-      selectedFilePath = filePath;
-      pageCount = pages;
-    });
+      setState(() {
+        selectedFileName = file.name;
+        selectedFilePath = filePath;
+        pageCount = pages;
+        selectedPage = 1;
+      });
 
-    debugPrint('PDF: $selectedFileName');
-    debugPrint('Seiten: $pageCount');
+      debugPrint('PDF: $selectedFileName');
+      debugPrint('Seiten: $pageCount');
+    } catch (error) {
+      showMessage('PDF konnte nicht gelesen werden: $error');
+    }
+  }
+
+  void showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 
   Widget buildStartView() {
@@ -90,41 +109,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildPdfView() {
+  Widget buildDocumentView() {
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-          color: Colors.grey.shade200,
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '📄 ${selectedFileName ?? '-'}',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                '📑 $pageCount Seiten',
-                style: const TextStyle(
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
+        PdfInformation(
+          fileName: selectedFileName ?? 'Unbekannte Datei',
+          pageCount: pageCount,
+          selectedPage: selectedPage,
         ),
         Expanded(
-          child: SfPdfViewer.file(
-            File(selectedFilePath!),
+          child: PdfViewPanel(
+            filePath: selectedFilePath!,
           ),
         ),
       ],
@@ -133,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasDocument = selectedFilePath != null;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Easy PDF'),
@@ -144,9 +141,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onOpen: pickPdf,
           ),
           Expanded(
-            child: selectedFilePath == null
-                ? buildStartView()
-                : buildPdfView(),
+            child: hasDocument
+                ? buildDocumentView()
+                : buildStartView(),
           ),
         ],
       ),
