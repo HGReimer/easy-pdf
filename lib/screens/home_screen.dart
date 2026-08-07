@@ -5,6 +5,7 @@ import '../services/pdf_service.dart';
 import '../widgets/pdf_information.dart';
 import '../widgets/pdf_toolbar.dart';
 import '../widgets/pdf_view_panel.dart';
+import '../widgets/thumbnail_panel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,7 +37,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final filePath = file.path;
 
     if (filePath == null) {
-      showMessage('Die ausgewählte Datei konnte nicht geöffnet werden.');
+      showMessage(
+        'Die ausgewählte Datei konnte nicht geöffnet werden.',
+      );
       return;
     }
 
@@ -53,8 +56,18 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('PDF: $selectedFileName');
       debugPrint('Seiten: $pageCount');
     } catch (error) {
-      showMessage('PDF konnte nicht gelesen werden: $error');
+      showMessage(
+        'PDF konnte nicht gelesen werden: $error',
+      );
     }
+  }
+
+  void selectPage(int page) {
+    setState(() {
+      selectedPage = page;
+    });
+
+    debugPrint('Ausgewählte Seite: $selectedPage');
   }
 
   void showMessage(String message) {
@@ -118,8 +131,19 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedPage: selectedPage,
         ),
         Expanded(
-          child: PdfViewPanel(
-            filePath: selectedFilePath!,
+          child: Row(
+            children: [
+              ThumbnailPanel(
+                filePath: selectedFilePath!,
+                selectedPage: selectedPage,
+                onPageSelected: selectPage,
+              ),
+              Expanded(
+                child: PdfViewPanel(
+                  filePath: selectedFilePath!,
+                ),
+              ),
+            ],
           ),
         ),
       ],

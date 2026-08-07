@@ -88,3 +88,15 @@ Bei jeder neuen Idee stellen wir zuerst die Frage:
 > Bringt uns diese Funktion schneller zur ersten Veröffentlichung?
 
 Wenn nein, wird sie auf eine spätere Version verschoben.
+
+# Erfolg bedeutet
+
+Nicht:
+
+"Version 1.0 ist fertig."
+
+Sondern:
+
+"Der erste Kunde hat Easy PDF gekauft."
+
+Das ist unser erster großer Meilenstein.
