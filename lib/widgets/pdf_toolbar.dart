@@ -4,9 +4,11 @@ class PdfToolbar extends StatelessWidget {
   const PdfToolbar({
     super.key,
     required this.onOpen,
+    this.onDeletePage,
   });
 
   final VoidCallback onOpen;
+  final VoidCallback? onDeletePage;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +32,7 @@ class PdfToolbar extends StatelessWidget {
           ),
 
           IconButton(
-            onPressed: null,
+            onPressed: onDeletePage,
             icon: const Icon(Icons.delete),
             tooltip: "Seite löschen",
           ),

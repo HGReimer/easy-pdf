@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -37,9 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final filePath = file.path;
 
     if (filePath == null) {
-      showMessage(
-        'Die ausgewählte Datei konnte nicht geöffnet werden.',
-      );
+      showMessage('Die ausgewählte Datei konnte nicht geöffnet werden.');
       return;
     }
 
@@ -56,9 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('PDF: $selectedFileName');
       debugPrint('Seiten: $pageCount');
     } catch (error) {
-      showMessage(
-        'PDF konnte nicht gelesen werden: $error',
-      );
+      showMessage('PDF konnte nicht gelesen werden: $error');
     }
   }
 
@@ -75,11 +73,82 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> confirmDeletePage() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage('Keine PDF-Datei geöffnet.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Seite löschen'),
+          content: Text('Seite $selectedPage wirklich löschen?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Löschen'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      final inputFile = File(inputPath);
+
+      final dotIndex = inputPath.toLowerCase().lastIndexOf('.pdf');
+
+      final outputPath = dotIndex >= 0
+          ? '${inputPath.substring(0, dotIndex)}_bearbeitet.pdf'
+          : '${inputPath}_bearbeitet.pdf';
+
+      await inputFile.copy('$inputPath.backup');
+
+      await pdfService.deletePage(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        pageNumber: selectedPage,
+      );
+
+      final newPageCount = pdfService.getPageCount(outputPath);
+
+      setState(() {
+        selectedFilePath = outputPath;
+        selectedFileName = File(outputPath).uri.pathSegments.last;
+        pageCount = newPageCount;
+
+        if (selectedPage > newPageCount) {
+          selectedPage = newPageCount;
+        }
+      });
+
+      showMessage(
+        'Seite gelöscht. Neue Datei: ${File(outputPath).uri.pathSegments.last}',
+      );
+    } catch (error) {
+      showMessage('Seite konnte nicht gelöscht werden: $error');
+    }
   }
 
   Widget buildStartView() {
@@ -89,26 +158,17 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.picture_as_pdf,
-              size: 96,
-              color: Colors.red,
-            ),
+            const Icon(Icons.picture_as_pdf, size: 96, color: Colors.red),
             const SizedBox(height: 20),
             const Text(
               'Easy PDF',
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
               'Einfach. Schnell. Ohne Abo.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-              ),
+              style: TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 32),
             FilledButton.icon(
@@ -141,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: PdfViewPanel(
                   filePath: selectedFilePath!,
+                  selectedPage: selectedPage,
                 ),
               ),
             ],
@@ -155,20 +216,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final hasDocument = selectedFilePath != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Easy PDF'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Easy PDF'), centerTitle: true),
       body: Column(
         children: [
           PdfToolbar(
             onOpen: pickPdf,
+            onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
           ),
-          Expanded(
-            child: hasDocument
-                ? buildDocumentView()
-                : buildStartView(),
-          ),
+          Expanded(child: hasDocument ? buildDocumentView() : buildStartView()),
         ],
       ),
     );
