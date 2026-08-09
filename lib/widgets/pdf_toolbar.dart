@@ -4,10 +4,12 @@ class PdfToolbar extends StatelessWidget {
   const PdfToolbar({
     super.key,
     required this.onOpen,
+    this.onSave,
     this.onDeletePage,
   });
 
   final VoidCallback onOpen;
+  final VoidCallback? onSave;
   final VoidCallback? onDeletePage;
 
   @override
@@ -26,7 +28,7 @@ class PdfToolbar extends StatelessWidget {
           const SizedBox(width: 8),
 
           IconButton(
-            onPressed: null,
+            onPressed: onSave,
             icon: const Icon(Icons.save),
             tooltip: "Speichern",
           ),

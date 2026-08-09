@@ -78,6 +78,48 @@ class _HomeScreenState extends State<HomeScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> saveCurrentPdf() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage('Keine PDF-Datei geöffnet.');
+      return;
+    }
+
+    final outputPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'PDF speichern unter',
+      fileName: selectedFileName ?? 'dokument.pdf',
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+
+    if (outputPath == null) {
+      return;
+    }
+
+    final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
+        ? outputPath
+        : '$outputPath.pdf';
+
+    try {
+      if (File(inputPath).absolute.path == File(pdfPath).absolute.path) {
+        showMessage('Die PDF ist bereits unter diesem Namen gespeichert.');
+        return;
+      }
+
+      await File(inputPath).copy(pdfPath);
+
+      setState(() {
+        selectedFilePath = pdfPath;
+        selectedFileName = File(pdfPath).uri.pathSegments.last;
+      });
+
+      showMessage('PDF gespeichert: ${File(pdfPath).uri.pathSegments.last}');
+    } catch (error) {
+      showMessage('PDF konnte nicht gespeichert werden: $error');
+    }
+  }
+
   Future<void> confirmDeletePage() async {
     final inputPath = selectedFilePath;
 
@@ -221,6 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           PdfToolbar(
             onOpen: pickPdf,
+            onSave: selectedFilePath == null ? null : saveCurrentPdf,
             onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
           ),
           Expanded(child: hasDocument ? buildDocumentView() : buildStartView()),
