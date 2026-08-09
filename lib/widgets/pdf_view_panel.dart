@@ -20,6 +20,30 @@ class PdfViewPanel extends StatefulWidget {
 class _PdfViewPanelState extends State<PdfViewPanel> {
   final PdfViewerController _controller = PdfViewerController();
 
+  double _zoomLevel = 1.0;
+
+  void _zoomOut() {
+    if (_zoomLevel <= 1.0) {
+      return;
+    }
+
+    setState(() {
+      _zoomLevel = (_zoomLevel - 0.5).clamp(1.0, 3.0);
+      _controller.zoomLevel = _zoomLevel;
+    });
+  }
+
+  void _zoomIn() {
+    if (_zoomLevel >= 3.0) {
+      return;
+    }
+
+    setState(() {
+      _zoomLevel = (_zoomLevel + 0.5).clamp(1.0, 3.0);
+      _controller.zoomLevel = _zoomLevel;
+    });
+  }
+
   @override
   void didUpdateWidget(covariant PdfViewPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -31,9 +55,39 @@ class _PdfViewPanelState extends State<PdfViewPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return SfPdfViewer.file(
-      File(widget.filePath),
-      controller: _controller,
+    return Column(
+      children: [
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          color: Colors.grey.shade100,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: _zoomLevel <= 1.0 ? null : _zoomOut,
+                icon: const Icon(Icons.remove),
+                tooltip: "Verkleinern",
+              ),
+              Text(
+                "${(_zoomLevel * 100).round()} %",
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              IconButton(
+                onPressed: _zoomLevel >= 3.0 ? null : _zoomIn,
+                icon: const Icon(Icons.add),
+                tooltip: "Vergrößern",
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: SfPdfViewer.file(
+            File(widget.filePath),
+            controller: _controller,
+          ),
+        ),
+      ],
     );
   }
 }
