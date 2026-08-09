@@ -68,6 +68,18 @@ class _HomeScreenState extends State<HomeScreen> {
     debugPrint('Ausgewählte Seite: $selectedPage');
   }
 
+  void goToPreviousPage() {
+    if (selectedPage > 1) {
+      selectPage(selectedPage - 1);
+    }
+  }
+
+  void goToNextPage() {
+    if (selectedPage < pageCount) {
+      selectPage(selectedPage + 1);
+    }
+  }
+
   void showMessage(String message) {
     if (!mounted) {
       return;
@@ -328,6 +340,14 @@ class _HomeScreenState extends State<HomeScreen> {
             onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
             onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
             onExtractPage: selectedFilePath == null ? null : extractCurrentPage,
+            onPreviousPage: selectedFilePath == null || selectedPage <= 1
+                ? null
+                : goToPreviousPage,
+            onNextPage: selectedFilePath == null || selectedPage >= pageCount
+                ? null
+                : goToNextPage,
+            selectedPage: selectedPage,
+            pageCount: pageCount,
           ),
           Expanded(child: hasDocument ? buildDocumentView() : buildStartView()),
         ],

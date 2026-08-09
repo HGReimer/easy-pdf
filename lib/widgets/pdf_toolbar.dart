@@ -8,6 +8,10 @@ class PdfToolbar extends StatelessWidget {
     this.onDeletePage,
     this.onRotatePage,
     this.onExtractPage,
+    this.onPreviousPage,
+    this.onNextPage,
+    required this.selectedPage,
+    required this.pageCount,
   });
 
   final VoidCallback onOpen;
@@ -15,6 +19,10 @@ class PdfToolbar extends StatelessWidget {
   final VoidCallback? onDeletePage;
   final VoidCallback? onRotatePage;
   final VoidCallback? onExtractPage;
+  final VoidCallback? onPreviousPage;
+  final VoidCallback? onNextPage;
+  final int selectedPage;
+  final int pageCount;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +61,25 @@ class PdfToolbar extends StatelessWidget {
             onPressed: onExtractPage,
             icon: const Icon(Icons.content_cut),
             tooltip: "Seite extrahieren",
+          ),
+
+          const Spacer(),
+
+          IconButton(
+            onPressed: onPreviousPage,
+            icon: const Icon(Icons.chevron_left),
+            tooltip: "Vorherige Seite",
+          ),
+
+          Text(
+            pageCount > 0 ? "$selectedPage / $pageCount" : "– / –",
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+
+          IconButton(
+            onPressed: onNextPage,
+            icon: const Icon(Icons.chevron_right),
+            tooltip: "Nächste Seite",
           ),
         ],
       ),
