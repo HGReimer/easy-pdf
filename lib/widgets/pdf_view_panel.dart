@@ -74,6 +74,18 @@ class _PdfViewPanelState extends State<PdfViewPanel> {
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               IconButton(
+                onPressed: _zoomLevel == 1.0
+                    ? null
+                    : () {
+                        setState(() {
+                          _zoomLevel = 1.0;
+                          _controller.zoomLevel = 1.0;
+                        });
+                      },
+                icon: const Icon(Icons.restart_alt),
+                tooltip: "Zoom auf 100 % zurücksetzen",
+              ),
+              IconButton(
                 onPressed: _zoomLevel >= 3.0 ? null : _zoomIn,
                 icon: const Icon(Icons.add),
                 tooltip: "Vergrößern",
