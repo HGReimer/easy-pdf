@@ -78,6 +78,40 @@ class _HomeScreenState extends State<HomeScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> rotateCurrentPage() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage('Keine PDF-Datei geöffnet.');
+      return;
+    }
+
+    try {
+      final dotIndex = inputPath.toLowerCase().lastIndexOf('.pdf');
+
+      final outputPath = dotIndex >= 0
+          ? '${inputPath.substring(0, dotIndex)}_gedreht.pdf'
+          : '${inputPath}_gedreht.pdf';
+
+      await File(inputPath).copy('$inputPath.backup');
+
+      await pdfService.rotatePage(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        pageNumber: selectedPage,
+      );
+
+      setState(() {
+        selectedFilePath = outputPath;
+        selectedFileName = File(outputPath).uri.pathSegments.last;
+      });
+
+      showMessage('Seite $selectedPage wurde um 90° gedreht.');
+    } catch (error) {
+      showMessage('Seite konnte nicht gedreht werden: $error');
+    }
+  }
+
   Future<void> saveCurrentPdf() async {
     final inputPath = selectedFilePath;
 
@@ -265,6 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onOpen: pickPdf,
             onSave: selectedFilePath == null ? null : saveCurrentPdf,
             onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
+            onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
           ),
           Expanded(child: hasDocument ? buildDocumentView() : buildStartView()),
         ],

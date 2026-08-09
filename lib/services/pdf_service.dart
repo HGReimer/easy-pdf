@@ -40,9 +40,7 @@ class PdfService {
       }
 
       if (pageNumber < 1 || pageNumber > document.pages.count) {
-        throw RangeError(
-          'Ungültige Seitennummer: $pageNumber',
-        );
+        throw RangeError('Ungültige Seitennummer: $pageNumber');
       }
 
       final pageIndex = pageNumber - 1;
@@ -57,11 +55,45 @@ class PdfService {
     }
   }
 
+  /// Dreht eine einzelne PDF-Seite um 90 Grad im Uhrzeigersinn.
+  Future<void> rotatePage({
+    required String inputPath,
+    required String outputPath,
+    required int pageNumber,
+  }) async {
+    final document = open(inputPath);
+
+    try {
+      if (pageNumber < 1 || pageNumber > document.pages.count) {
+        throw RangeError('Ungültige Seitennummer: $pageNumber');
+      }
+
+      final page = document.pages[pageNumber - 1];
+
+      switch (page.rotation) {
+        case PdfPageRotateAngle.rotateAngle0:
+          page.rotation = PdfPageRotateAngle.rotateAngle90;
+          break;
+        case PdfPageRotateAngle.rotateAngle90:
+          page.rotation = PdfPageRotateAngle.rotateAngle180;
+          break;
+        case PdfPageRotateAngle.rotateAngle180:
+          page.rotation = PdfPageRotateAngle.rotateAngle270;
+          break;
+        case PdfPageRotateAngle.rotateAngle270:
+          page.rotation = PdfPageRotateAngle.rotateAngle0;
+          break;
+      }
+
+      final bytes = await document.save();
+      await File(outputPath).writeAsBytes(bytes);
+    } finally {
+      document.dispose();
+    }
+  }
+
   /// Speichert ein PDF-Dokument.
-  Future<void> save(
-    PdfDocument document,
-    String outputPath,
-  ) async {
+  Future<void> save(PdfDocument document, String outputPath) async {
     final bytes = await document.save();
 
     final file = File(outputPath);

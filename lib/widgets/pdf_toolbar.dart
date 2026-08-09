@@ -6,11 +6,13 @@ class PdfToolbar extends StatelessWidget {
     required this.onOpen,
     this.onSave,
     this.onDeletePage,
+    this.onRotatePage,
   });
 
   final VoidCallback onOpen;
   final VoidCallback? onSave;
   final VoidCallback? onDeletePage;
+  final VoidCallback? onRotatePage;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +42,7 @@ class PdfToolbar extends StatelessWidget {
           ),
 
           IconButton(
-            onPressed: null,
+            onPressed: onRotatePage,
             icon: const Icon(Icons.rotate_right),
             tooltip: "Seite drehen",
           ),
