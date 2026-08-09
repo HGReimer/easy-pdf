@@ -392,33 +392,83 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Easy PDF'), centerTitle: true),
       body: DropTarget(
-        onDragDone: (detail) {
+        onDragDone: (detail) async {
           if (detail.files.isEmpty) {
             return;
           }
 
           final droppedFile = detail.files.first;
           final droppedPath = droppedFile.path;
+          final lowerPath = droppedPath.toLowerCase();
 
-          if (!droppedPath.toLowerCase().endsWith('.pdf')) {
-            showMessage('Bitte zunächst nur PDF-Dateien hineinziehen.');
+          if (lowerPath.endsWith('.pdf')) {
+            try {
+              final pages = pdfService.getPageCount(droppedPath);
+
+              setState(() {
+                selectedFileName = File(droppedPath).uri.pathSegments.last;
+                selectedFilePath = droppedPath;
+                pageCount = pages;
+                selectedPage = 1;
+              });
+
+              showMessage('PDF per Drag & Drop geöffnet.');
+            } catch (error) {
+              showMessage('PDF konnte nicht geöffnet werden: $error');
+            }
             return;
           }
 
-          try {
-            final pages = pdfService.getPageCount(droppedPath);
+          final isImage =
+              lowerPath.endsWith('.jpg') ||
+              lowerPath.endsWith('.jpeg') ||
+              lowerPath.endsWith('.png');
 
-            setState(() {
-              selectedFileName = File(droppedPath).uri.pathSegments.last;
-              selectedFilePath = droppedPath;
-              pageCount = pages;
-              selectedPage = 1;
-            });
+          if (isImage) {
+            final imageName = File(droppedPath).uri.pathSegments.last;
+            final dotIndex = imageName.lastIndexOf('.');
+            final baseName = dotIndex > 0
+                ? imageName.substring(0, dotIndex)
+                : imageName;
 
-            showMessage('PDF per Drag & Drop geöffnet.');
-          } catch (error) {
-            showMessage('PDF konnte nicht geöffnet werden: $error');
+            final outputPath = await FilePicker.platform.saveFile(
+              dialogTitle: 'Bild als PDF speichern',
+              fileName: '$baseName.pdf',
+              type: FileType.custom,
+              allowedExtensions: ['pdf'],
+            );
+
+            if (outputPath == null) {
+              return;
+            }
+
+            final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
+                ? outputPath
+                : '$outputPath.pdf';
+
+            try {
+              await pdfService.createPdfFromImage(
+                imagePath: droppedPath,
+                outputPath: pdfPath,
+              );
+
+              final pages = pdfService.getPageCount(pdfPath);
+
+              setState(() {
+                selectedFileName = File(pdfPath).uri.pathSegments.last;
+                selectedFilePath = pdfPath;
+                pageCount = pages;
+                selectedPage = 1;
+              });
+
+              showMessage('Bild per Drag & Drop in PDF umgewandelt.');
+            } catch (error) {
+              showMessage('Bild konnte nicht umgewandelt werden: $error');
+            }
+            return;
           }
+
+          showMessage('Dateityp wird noch nicht unterstützt.');
         },
         child: Column(
           children: [
