@@ -131,6 +131,50 @@ class PdfService {
     }
   }
 
+  /// Erstellt aus einer Bilddatei ein einseitiges PDF.
+  Future<void> createPdfFromImage({
+    required String imagePath,
+    required String outputPath,
+  }) async {
+    final imageBytes = await File(imagePath).readAsBytes();
+    final image = PdfBitmap(imageBytes);
+    final document = PdfDocument();
+
+    try {
+      final isLandscape = image.width > image.height;
+
+      document.pageSettings.size = PdfPageSize.a4;
+      document.pageSettings.orientation = isLandscape
+          ? PdfPageOrientation.landscape
+          : PdfPageOrientation.portrait;
+      document.pageSettings.margins.all = 24;
+
+      final page = document.pages.add();
+      final availableSize = page.getClientSize();
+
+      final imageWidth = image.width.toDouble();
+      final imageHeight = image.height.toDouble();
+      final scaleX = availableSize.width / imageWidth;
+      final scaleY = availableSize.height / imageHeight;
+      final scale = scaleX < scaleY ? scaleX : scaleY;
+
+      final drawWidth = imageWidth * scale;
+      final drawHeight = imageHeight * scale;
+      final x = (availableSize.width - drawWidth) / 2;
+      final y = (availableSize.height - drawHeight) / 2;
+
+      page.graphics.drawImage(
+        image,
+        Rect.fromLTWH(x, y, drawWidth, drawHeight),
+      );
+
+      final bytes = await document.save();
+      await File(outputPath).writeAsBytes(bytes);
+    } finally {
+      document.dispose();
+    }
+  }
+
   /// Speichert ein PDF-Dokument.
   Future<void> save(PdfDocument document, String outputPath) async {
     final bytes = await document.save();

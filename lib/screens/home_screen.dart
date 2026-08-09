@@ -151,6 +151,64 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> pickImageAndCreatePdf() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png'],
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    final file = result.files.single;
+    final imagePath = file.path;
+
+    if (imagePath == null) {
+      showMessage('Das ausgewählte Bild konnte nicht geöffnet werden.');
+      return;
+    }
+
+    final baseName = file.name.contains('.')
+        ? file.name.substring(0, file.name.lastIndexOf('.'))
+        : file.name;
+
+    final outputPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'Bild als PDF speichern',
+      fileName: '$baseName.pdf',
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+
+    if (outputPath == null) {
+      return;
+    }
+
+    final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
+        ? outputPath
+        : '$outputPath.pdf';
+
+    try {
+      await pdfService.createPdfFromImage(
+        imagePath: imagePath,
+        outputPath: pdfPath,
+      );
+
+      final pages = pdfService.getPageCount(pdfPath);
+
+      setState(() {
+        selectedFileName = File(pdfPath).uri.pathSegments.last;
+        selectedFilePath = pdfPath;
+        pageCount = pages;
+        selectedPage = 1;
+      });
+
+      showMessage('Bild wurde erfolgreich in PDF umgewandelt.');
+    } catch (error) {
+      showMessage('Bild konnte nicht in PDF umgewandelt werden: $error');
+    }
+  }
+
   Future<void> saveCurrentPdf() async {
     final inputPath = selectedFilePath;
 
@@ -336,6 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           PdfToolbar(
             onOpen: pickPdf,
+            onImageToPdf: pickImageAndCreatePdf,
             onSave: selectedFilePath == null ? null : saveCurrentPdf,
             onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
             onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
