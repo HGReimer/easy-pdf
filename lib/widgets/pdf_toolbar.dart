@@ -7,12 +7,14 @@ class PdfToolbar extends StatelessWidget {
     this.onSave,
     this.onDeletePage,
     this.onRotatePage,
+    this.onExtractPage,
   });
 
   final VoidCallback onOpen;
   final VoidCallback? onSave;
   final VoidCallback? onDeletePage;
   final VoidCallback? onRotatePage;
+  final VoidCallback? onExtractPage;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +50,7 @@ class PdfToolbar extends StatelessWidget {
           ),
 
           IconButton(
-            onPressed: null,
+            onPressed: onExtractPage,
             icon: const Icon(Icons.content_cut),
             tooltip: "Seite extrahieren",
           ),

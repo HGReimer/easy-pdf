@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class PdfService {
@@ -89,6 +91,43 @@ class PdfService {
       await File(outputPath).writeAsBytes(bytes);
     } finally {
       document.dispose();
+    }
+  }
+
+  /// Extrahiert eine einzelne Seite in eine neue PDF-Datei.
+  Future<void> extractPage({
+    required String inputPath,
+    required String outputPath,
+    required int pageNumber,
+  }) async {
+    final sourceDocument = open(inputPath);
+
+    try {
+      if (pageNumber < 1 || pageNumber > sourceDocument.pages.count) {
+        throw RangeError('Ungültige Seitennummer: $pageNumber');
+      }
+
+      final sourcePage = sourceDocument.pages[pageNumber - 1];
+      final pageSize = sourcePage.size;
+      final template = sourcePage.createTemplate();
+
+      final targetDocument = PdfDocument();
+
+      try {
+        targetDocument.pageSettings.size = pageSize;
+        targetDocument.pageSettings.margins.all = 0;
+
+        final targetPage = targetDocument.pages.add();
+
+        targetPage.graphics.drawPdfTemplate(template, Offset.zero, pageSize);
+
+        final bytes = await targetDocument.save();
+        await File(outputPath).writeAsBytes(bytes);
+      } finally {
+        targetDocument.dispose();
+      }
+    } finally {
+      sourceDocument.dispose();
     }
   }
 

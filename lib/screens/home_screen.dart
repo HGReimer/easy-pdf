@@ -78,6 +78,33 @@ class _HomeScreenState extends State<HomeScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> extractCurrentPage() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage('Keine PDF-Datei geöffnet.');
+      return;
+    }
+
+    try {
+      final dotIndex = inputPath.toLowerCase().lastIndexOf('.pdf');
+
+      final outputPath = dotIndex >= 0
+          ? '${inputPath.substring(0, dotIndex)}_seite_$selectedPage.pdf'
+          : '${inputPath}_seite_$selectedPage.pdf';
+
+      await pdfService.extractPage(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        pageNumber: selectedPage,
+      );
+
+      showMessage('Seite $selectedPage wurde extrahiert.');
+    } catch (error) {
+      showMessage('Seite konnte nicht extrahiert werden: $error');
+    }
+  }
+
   Future<void> rotateCurrentPage() async {
     final inputPath = selectedFilePath;
 
@@ -300,6 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onSave: selectedFilePath == null ? null : saveCurrentPdf,
             onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
             onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
+            onExtractPage: selectedFilePath == null ? null : extractCurrentPage,
           ),
           Expanded(child: hasDocument ? buildDocumentView() : buildStartView()),
         ],
