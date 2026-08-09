@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -390,26 +391,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Easy PDF'), centerTitle: true),
-      body: Column(
-        children: [
-          PdfToolbar(
-            onOpen: pickPdf,
-            onImageToPdf: pickImageAndCreatePdf,
-            onSave: selectedFilePath == null ? null : saveCurrentPdf,
-            onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
-            onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
-            onExtractPage: selectedFilePath == null ? null : extractCurrentPage,
-            onPreviousPage: selectedFilePath == null || selectedPage <= 1
-                ? null
-                : goToPreviousPage,
-            onNextPage: selectedFilePath == null || selectedPage >= pageCount
-                ? null
-                : goToNextPage,
-            selectedPage: selectedPage,
-            pageCount: pageCount,
-          ),
-          Expanded(child: hasDocument ? buildDocumentView() : buildStartView()),
-        ],
+      body: DropTarget(
+        onDragDone: (detail) {
+          if (detail.files.isEmpty) {
+            return;
+          }
+
+          final droppedFile = detail.files.first;
+          final droppedPath = droppedFile.path;
+
+          if (!droppedPath.toLowerCase().endsWith('.pdf')) {
+            showMessage('Bitte zunächst nur PDF-Dateien hineinziehen.');
+            return;
+          }
+
+          try {
+            final pages = pdfService.getPageCount(droppedPath);
+
+            setState(() {
+              selectedFileName = File(droppedPath).uri.pathSegments.last;
+              selectedFilePath = droppedPath;
+              pageCount = pages;
+              selectedPage = 1;
+            });
+
+            showMessage('PDF per Drag & Drop geöffnet.');
+          } catch (error) {
+            showMessage('PDF konnte nicht geöffnet werden: $error');
+          }
+        },
+        child: Column(
+          children: [
+            PdfToolbar(
+              onOpen: pickPdf,
+              onImageToPdf: pickImageAndCreatePdf,
+              onSave: selectedFilePath == null ? null : saveCurrentPdf,
+              onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
+              onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
+              onExtractPage: selectedFilePath == null
+                  ? null
+                  : extractCurrentPage,
+              onPreviousPage: selectedFilePath == null || selectedPage <= 1
+                  ? null
+                  : goToPreviousPage,
+              onNextPage: selectedFilePath == null || selectedPage >= pageCount
+                  ? null
+                  : goToNextPage,
+              selectedPage: selectedPage,
+              pageCount: pageCount,
+            ),
+            Expanded(
+              child: hasDocument ? buildDocumentView() : buildStartView(),
+            ),
+          ],
+        ),
       ),
     );
   }
