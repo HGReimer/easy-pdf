@@ -184,6 +184,52 @@ class PdfService {
     }
   }
 
+  /// Fügt mehrere PDF-Dateien zu einer neuen PDF-Datei zusammen.
+  Future<void> mergePdfs({
+    required List<String> inputPaths,
+    required String outputPath,
+  }) async {
+    if (inputPaths.length < 2) {
+      throw ArgumentError(
+        'Zum Zusammenführen werden mindestens zwei PDF-Dateien benötigt.',
+      );
+    }
+
+    final targetDocument = PdfDocument();
+
+    try {
+      for (final inputPath in inputPaths) {
+        final sourceDocument = open(inputPath);
+
+        try {
+          for (var index = 0; index < sourceDocument.pages.count; index++) {
+            final sourcePage = sourceDocument.pages[index];
+            final pageSize = sourcePage.size;
+            final template = sourcePage.createTemplate();
+
+            targetDocument.pageSettings.size = pageSize;
+            targetDocument.pageSettings.margins.all = 0;
+
+            final targetPage = targetDocument.pages.add();
+
+            targetPage.graphics.drawPdfTemplate(
+              template,
+              Offset.zero,
+              pageSize,
+            );
+          }
+        } finally {
+          sourceDocument.dispose();
+        }
+      }
+
+      final bytes = await targetDocument.save();
+      await File(outputPath).writeAsBytes(bytes);
+    } finally {
+      targetDocument.dispose();
+    }
+  }
+
   /// Erstellt aus einer Bilddatei ein einseitiges PDF.
   Future<void> createPdfFromImage({
     required String imagePath,

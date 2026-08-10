@@ -22,9 +22,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? selectedFileName;
   String? selectedFilePath;
+  bool mergeMode = false;
+  final List<String> mergePdfPaths = [];
 
   int pageCount = 0;
   int selectedPage = 1;
+
+  void startMergeMode() {
+    setState(() {
+      mergeMode = true;
+      mergePdfPaths.clear();
+      selectedFileName = null;
+      selectedFilePath = null;
+      pageCount = 0;
+      selectedPage = 1;
+    });
+
+    showMessage("Merge-Modus aktiv – PDFs einzeln hineinziehen.");
+  }
+
+  Future<void> finishMergeMode() async {
+    if (mergePdfPaths.length < 2) {
+      showMessage("Bitte mindestens zwei PDFs sammeln.");
+      return;
+    }
+
+    try {
+      final firstPath = mergePdfPaths.first;
+      final dotIndex = firstPath.toLowerCase().lastIndexOf(".pdf");
+      final outputPath = dotIndex >= 0
+          ? "${firstPath.substring(0, dotIndex)}_zusammengefuegt.pdf"
+          : "${firstPath}_zusammengefuegt.pdf";
+
+      await pdfService.mergePdfs(
+        inputPaths: List<String>.from(mergePdfPaths),
+        outputPath: outputPath,
+      );
+
+      final pages = pdfService.getPageCount(outputPath);
+
+      setState(() {
+        mergeMode = false;
+        mergePdfPaths.clear();
+        selectedFilePath = outputPath;
+        selectedFileName = File(outputPath).uri.pathSegments.last;
+        pageCount = pages;
+        selectedPage = 1;
+      });
+
+      showMessage("PDFs erfolgreich zusammengeführt.");
+    } catch (error) {
+      showMessage("PDFs konnten nicht zusammengeführt werden: $error");
+    }
+  }
 
   Future<void> pickPdf() async {
     final result = await FilePicker.platform.pickFiles(
@@ -59,6 +109,73 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (error) {
       showMessage('PDF konnte nicht gelesen werden: $error');
     }
+  }
+
+  Future<void> pickPdfsAndMerge() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      allowMultiple: true,
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    final inputPaths = result.files
+        .where((file) => file.path != null)
+        .map((file) => file.path!)
+        .toList();
+
+    if (inputPaths.length < 2) {
+      showMessage('Bitte mindestens zwei PDF-Dateien auswählen.');
+      return;
+    }
+
+    try {
+      final firstPath = inputPaths.first;
+      final dotIndex = firstPath.toLowerCase().lastIndexOf('.pdf');
+
+      final outputPath = dotIndex >= 0
+          ? '${firstPath.substring(0, dotIndex)}_zusammengefuegt.pdf'
+          : '${firstPath}_zusammengefuegt.pdf';
+
+      await pdfService.mergePdfs(
+        inputPaths: inputPaths,
+        outputPath: outputPath,
+      );
+
+      final pages = pdfService.getPageCount(outputPath);
+
+      setState(() {
+        selectedFilePath = outputPath;
+        selectedFileName = File(outputPath).uri.pathSegments.last;
+        pageCount = pages;
+        selectedPage = 1;
+      });
+
+      showMessage(
+        '${inputPaths.length} PDFs zusammengeführt. '
+        'Neue Datei: ${File(outputPath).uri.pathSegments.last}',
+      );
+    } catch (error) {
+      showMessage('PDFs konnten nicht zusammengeführt werden: $error');
+    }
+  }
+
+  void closeCurrentPdf() {
+    if (selectedFilePath == null) {
+      return;
+    }
+
+    setState(() {
+      selectedFileName = null;
+      selectedFilePath = null;
+      pageCount = 0;
+      selectedPage = 1;
+    });
+
+    showMessage('PDF geschlossen.');
   }
 
   void selectPage(int page) {
@@ -385,10 +502,33 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: pickPdf,
-              icon: const Icon(Icons.folder_open),
-              label: const Text('PDF öffnen'),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: pickPdf,
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('PDF öffnen'),
+                ),
+                if (mergeMode)
+                  FilledButton.icon(
+                    onPressed: mergePdfPaths.length < 2
+                        ? null
+                        : finishMergeMode,
+                    icon: const Icon(Icons.merge),
+                    label: Text(
+                      "Jetzt zusammenführen (${mergePdfPaths.length})",
+                    ),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: startMergeMode,
+                    icon: const Icon(Icons.merge_type),
+                    label: const Text("PDFs zusammenführen"),
+                  ),
+              ],
             ),
           ],
         ),
@@ -441,6 +581,17 @@ class _HomeScreenState extends State<HomeScreen> {
           final droppedFile = detail.files.first;
           final droppedPath = droppedFile.path;
           final lowerPath = droppedPath.toLowerCase();
+
+          if (mergeMode && lowerPath.endsWith(".pdf")) {
+            setState(() {
+              if (!mergePdfPaths.contains(droppedPath)) {
+                mergePdfPaths.add(droppedPath);
+              }
+            });
+
+            showMessage("${mergePdfPaths.length} PDF(s) im Sammelkorb.");
+            return;
+          }
 
           if (lowerPath.endsWith('.pdf')) {
             try {
@@ -517,6 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onOpen: pickPdf,
               onImageToPdf: pickImageAndCreatePdf,
               onSave: selectedFilePath == null ? null : saveCurrentPdf,
+              onClose: selectedFilePath == null ? null : closeCurrentPdf,
               onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
               onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
               onExtractPage: selectedFilePath == null
