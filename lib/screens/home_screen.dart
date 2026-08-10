@@ -118,6 +118,46 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> reorderCurrentPages(List<int> pageOrder) async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage('Keine PDF-Datei geöffnet.');
+      return;
+    }
+
+    try {
+      final dotIndex = inputPath.toLowerCase().lastIndexOf('.pdf');
+
+      final outputPath = dotIndex >= 0
+          ? '${inputPath.substring(0, dotIndex)}_sortiert.pdf'
+          : '${inputPath}_sortiert.pdf';
+
+      await File(inputPath).copy('$inputPath.backup');
+
+      final newSelectedPage = pageOrder.indexOf(selectedPage) + 1;
+
+      await pdfService.reorderPages(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        pageOrder: pageOrder,
+      );
+
+      setState(() {
+        selectedFilePath = outputPath;
+        selectedFileName = File(outputPath).uri.pathSegments.last;
+        pageCount = pageOrder.length;
+        selectedPage = newSelectedPage > 0 ? newSelectedPage : 1;
+      });
+
+      showMessage(
+        'Seiten neu sortiert. Neue Datei: ${File(outputPath).uri.pathSegments.last}',
+      );
+    } catch (error) {
+      showMessage('Seiten konnten nicht neu sortiert werden: $error');
+    }
+  }
+
   Future<void> rotateCurrentPage() async {
     final inputPath = selectedFilePath;
 
@@ -371,6 +411,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 filePath: selectedFilePath!,
                 selectedPage: selectedPage,
                 onPageSelected: selectPage,
+                onPageReordered: reorderCurrentPages,
               ),
               Expanded(
                 child: PdfViewPanel(

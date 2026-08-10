@@ -131,6 +131,59 @@ class PdfService {
     }
   }
 
+  /// Erstellt ein PDF mit den Seiten in der angegebenen Reihenfolge.
+  Future<void> reorderPages({
+    required String inputPath,
+    required String outputPath,
+    required List<int> pageOrder,
+  }) async {
+    final sourceDocument = open(inputPath);
+
+    try {
+      final pageCount = sourceDocument.pages.count;
+
+      if (pageOrder.length != pageCount) {
+        throw ArgumentError(
+          'Die Seitenreihenfolge muss genau $pageCount Seiten enthalten.',
+        );
+      }
+
+      final expectedPages = List<int>.generate(pageCount, (index) => index + 1);
+
+      final sortedOrder = [...pageOrder]..sort();
+
+      for (var index = 0; index < pageCount; index++) {
+        if (sortedOrder[index] != expectedPages[index]) {
+          throw ArgumentError('Die Seitenreihenfolge ist ungültig: $pageOrder');
+        }
+      }
+
+      final targetDocument = PdfDocument();
+
+      try {
+        for (final pageNumber in pageOrder) {
+          final sourcePage = sourceDocument.pages[pageNumber - 1];
+          final pageSize = sourcePage.size;
+          final template = sourcePage.createTemplate();
+
+          targetDocument.pageSettings.size = pageSize;
+          targetDocument.pageSettings.margins.all = 0;
+
+          final targetPage = targetDocument.pages.add();
+
+          targetPage.graphics.drawPdfTemplate(template, Offset.zero, pageSize);
+        }
+
+        final bytes = await targetDocument.save();
+        await File(outputPath).writeAsBytes(bytes);
+      } finally {
+        targetDocument.dispose();
+      }
+    } finally {
+      sourceDocument.dispose();
+    }
+  }
+
   /// Erstellt aus einer Bilddatei ein einseitiges PDF.
   Future<void> createPdfFromImage({
     required String imagePath,
