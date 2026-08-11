@@ -530,6 +530,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
               ],
             ),
+            if (mergeMode) ...[
+              const SizedBox(height: 24),
+              const Text(
+                "Sammelkorb",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (mergePdfPaths.isEmpty)
+                const Text("Noch keine PDFs gesammelt.")
+              else
+                ...mergePdfPaths.map(
+                  (path) => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(File(path).uri.pathSegments.last),
+                      IconButton(
+                        onPressed: () =>
+                            setState(() => mergePdfPaths.remove(path)),
+                        icon: const Icon(Icons.close),
+                        tooltip: "Aus Sammelkorb entfernen",
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    mergeMode = false;
+                    mergePdfPaths.clear();
+                  });
+                  showMessage("Merge abgebrochen.");
+                },
+                icon: const Icon(Icons.cancel),
+                label: const Text("Merge abbrechen"),
+              ),
+            ],
           ],
         ),
       ),
