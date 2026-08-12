@@ -14,7 +14,7 @@
 - [ ] PDF schließen und zur Startseite zurückkehren
 - [x] Speichern unter zuverlässig testen
 - [ ] Dateinamen und Speicherorte prüfen
-- [ ] Fehlerfälle mit beschädigten/geschützten PDFs testen
+- [x] Fehlerfälle mit beschädigten/geschützten PDFs testen
 - [ ] Große PDFs testen
 - [ ] Formulare, Links und Annotationen testen
 - [x] Linux-Speicherdialog prüfen

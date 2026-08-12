@@ -108,7 +108,13 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('PDF: $selectedFileName');
       debugPrint('Seiten: $pageCount');
     } catch (error) {
-      showMessage('PDF konnte nicht gelesen werden: $error');
+      if (error.toString().toLowerCase().contains('passwortgeschützt')) {
+        showMessage(
+          'Diese PDF ist passwortgeschützt und kann derzeit nicht geöffnet werden.',
+        );
+      } else {
+        showMessage('PDF konnte nicht gelesen werden: $error');
+      }
     }
   }
 

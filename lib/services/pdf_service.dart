@@ -7,8 +7,18 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 class PdfService {
   /// Öffnet ein PDF-Dokument.
   PdfDocument open(String path) {
-    final bytes = File(path).readAsBytesSync();
-    return PdfDocument(inputBytes: bytes);
+    try {
+      final bytes = File(path).readAsBytesSync();
+      return PdfDocument(inputBytes: bytes);
+    } catch (error) {
+      if (error.toString().toLowerCase().contains('password')) {
+        throw Exception(
+          'Diese PDF ist passwortgeschützt und kann derzeit nicht geöffnet werden.',
+        );
+      }
+
+      rethrow;
+    }
   }
 
   /// Gibt die Anzahl der Seiten zurück.
