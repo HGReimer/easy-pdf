@@ -2,7 +2,7 @@
 
 ## Muss vor Release
 
-- [ ] PDF öffnen und anzeigen
+- [x] PDF öffnen und anzeigen
 - [ ] PDF per Drag & Drop öffnen
 - [ ] Bilder in PDF umwandeln
 - [ ] Seiten löschen
