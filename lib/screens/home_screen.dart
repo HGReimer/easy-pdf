@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../services/pdf_service.dart';
@@ -375,16 +376,15 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final outputPath = await FilePicker.platform.saveFile(
-      dialogTitle: 'PDF speichern unter',
-      fileName: selectedFileName ?? 'dokument.pdf',
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
+    final saveLocation = await getSaveLocation(
+      suggestedName: selectedFileName ?? 'dokument.pdf',
     );
 
-    if (outputPath == null) {
+    if (saveLocation == null) {
       return;
     }
+
+    final outputPath = saveLocation.path;
 
     final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
         ? outputPath
