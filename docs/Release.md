@@ -3,9 +3,9 @@
 ## Muss vor Release
 
 - [x] PDF öffnen und anzeigen
-- [ ] PDF per Drag & Drop öffnen
-- [ ] Bilder in PDF umwandeln
-- [ ] Seiten löschen
+- [x] PDF per Drag & Drop öffnen
+- [x] Bilder in PDF umwandeln
+- [x] Seiten löschen
 - [ ] Seiten drehen
 - [ ] Seiten extrahieren
 - [ ] Seiten per Drag & Drop sortieren
