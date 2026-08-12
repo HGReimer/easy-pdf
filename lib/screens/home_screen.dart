@@ -78,22 +78,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> pickPdf() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
+    const pdfTypeGroup = XTypeGroup(label: 'PDF', extensions: ['pdf']);
 
-    if (result == null) {
+    final file = await openFile(acceptedTypeGroups: [pdfTypeGroup]);
+
+    if (file == null) {
       return;
     }
 
-    final file = result.files.single;
     final filePath = file.path;
-
-    if (filePath == null) {
-      showMessage('Die ausgewählte Datei konnte nicht geöffnet werden.');
-      return;
-    }
 
     try {
       final pages = pdfService.getPageCount(filePath);
@@ -415,7 +408,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> confirmDeletePage() async {
+  Future<void> confirmDeletePage([int? pageNumber]) async {
+    final pageToDelete = pageNumber ?? selectedPage;
     final inputPath = selectedFilePath;
 
     if (inputPath == null) {
@@ -428,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Seite löschen'),
-          content: Text('Seite $selectedPage wirklich löschen?'),
+          content: Text('Seite $pageToDelete wirklich löschen?'),
           actions: [
             TextButton(
               onPressed: () {
@@ -465,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await pdfService.deletePage(
         inputPath: inputPath,
         outputPath: outputPath,
-        pageNumber: selectedPage,
+        pageNumber: pageToDelete,
       );
 
       final newPageCount = pdfService.getPageCount(outputPath);
@@ -595,6 +589,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 selectedPage: selectedPage,
                 onPageSelected: selectPage,
                 onPageReordered: reorderCurrentPages,
+                onPageDelete: confirmDeletePage,
               ),
               Expanded(
                 child: PdfViewPanel(

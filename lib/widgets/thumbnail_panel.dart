@@ -8,12 +8,14 @@ class ThumbnailPanel extends StatefulWidget {
     required this.selectedPage,
     required this.onPageSelected,
     required this.onPageReordered,
+    required this.onPageDelete,
   });
 
   final String filePath;
   final int selectedPage;
   final ValueChanged<int> onPageSelected;
   final ValueChanged<List<int>> onPageReordered;
+  final ValueChanged<int> onPageDelete;
 
   @override
   State<ThumbnailPanel> createState() => _ThumbnailPanelState();
@@ -166,13 +168,19 @@ class _ThumbnailPanelState extends State<ThumbnailPanel> {
               ),
               const SizedBox(height: 6),
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.drag_indicator, size: 18),
                   const SizedBox(width: 4),
-                  Text(
-                    'Seite $pageNumber',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Text(
+                      'Seite $pageNumber',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => widget.onPageDelete(pageNumber),
+                    icon: const Icon(Icons.close, size: 18),
+                    tooltip: 'Seite löschen',
                   ),
                 ],
               ),
