@@ -616,6 +616,58 @@ class _HomeScreenState extends State<HomeScreen> {
             return;
           }
 
+            final imagePaths = detail.files
+                .map((file) => file.path)
+                .where((path) {
+                  final p = path.toLowerCase();
+                  return p.endsWith('.jpg') ||
+                      p.endsWith('.jpeg') ||
+                      p.endsWith('.png');
+                })
+                .toList();
+
+            if (imagePaths.length > 1) {
+              final outputPath = await FilePicker.platform.saveFile(
+                dialogTitle: 'Bilder als PDF speichern',
+                fileName: 'bilder.pdf',
+                type: FileType.custom,
+                allowedExtensions: ['pdf'],
+              );
+
+              if (outputPath == null) {
+                return;
+              }
+
+              final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
+                  ? outputPath
+                  : '$outputPath.pdf';
+
+              try {
+                await pdfService.createPdfFromImages(
+                  imagePaths: imagePaths,
+                  outputPath: pdfPath,
+                );
+
+                final pages = pdfService.getPageCount(pdfPath);
+
+                setState(() {
+                  selectedFileName = File(pdfPath).uri.pathSegments.last;
+                  selectedFilePath = pdfPath;
+                  pageCount = pages;
+                  selectedPage = 1;
+                });
+
+                showMessage(
+                  '${imagePaths.length} Bilder erfolgreich in PDF umgewandelt.',
+                );
+              } catch (error) {
+                showMessage(
+                  'Bilder konnten nicht umgewandelt werden: $error',
+                );
+              }
+
+              return;
+            }
           final droppedFile = detail.files.first;
           final droppedPath = droppedFile.path;
           final lowerPath = droppedPath.toLowerCase();
