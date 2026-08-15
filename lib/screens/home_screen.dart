@@ -361,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedPage = 1;
       });
 
-      showMessage('Bild wurde erfolgreich in PDF umgewandelt.');
+      showMessage('Bild erfolgreich in PDF umgewandelt.');
     } catch (error) {
       showMessage('Bild konnte nicht in PDF umgewandelt werden: $error');
     }
