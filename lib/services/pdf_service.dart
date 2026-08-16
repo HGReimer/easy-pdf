@@ -141,6 +141,61 @@ class PdfService {
     }
   }
 
+
+  /// Extrahiert einen zusammenhängenden Seitenbereich in eine neue PDF-Datei.
+  Future<void> extractPageRange({
+    required String inputPath,
+    required String outputPath,
+    required int startPage,
+    required int endPage,
+  }) async {
+    final sourceDocument = open(inputPath);
+
+    try {
+      final pageCount = sourceDocument.pages.count;
+
+      if (startPage < 1 ||
+          endPage < 1 ||
+          startPage > pageCount ||
+          endPage > pageCount ||
+          startPage > endPage) {
+        throw RangeError(
+          'Ungültiger Seitenbereich: $startPage bis $endPage',
+        );
+      }
+
+      final targetDocument = PdfDocument();
+
+      try {
+        for (var pageNumber = startPage;
+            pageNumber <= endPage;
+            pageNumber++) {
+          final sourcePage = sourceDocument.pages[pageNumber - 1];
+          final pageSize = sourcePage.size;
+          final template = sourcePage.createTemplate();
+
+          targetDocument.pageSettings.size = pageSize;
+          targetDocument.pageSettings.margins.all = 0;
+
+          final targetPage = targetDocument.pages.add();
+
+          targetPage.graphics.drawPdfTemplate(
+            template,
+            Offset.zero,
+            pageSize,
+          );
+        }
+
+        final bytes = await targetDocument.save();
+        await File(outputPath).writeAsBytes(bytes);
+      } finally {
+        targetDocument.dispose();
+      }
+    } finally {
+      sourceDocument.dispose();
+    }
+  }
+
   /// Erstellt ein PDF mit den Seiten in der angegebenen Reihenfolge.
   Future<void> reorderPages({
     required String inputPath,

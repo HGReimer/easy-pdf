@@ -235,6 +235,110 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> splitPdfByPageRange() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage('Keine PDF-Datei geöffnet.');
+      return;
+    }
+
+    final startController = TextEditingController(
+      text: selectedPage.toString(),
+    );
+    final endController = TextEditingController(text: pageCount.toString());
+
+    final range = await showDialog<List<int>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('PDF teilen'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Seitenbereich 1 bis $pageCount auswählen'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: startController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Von Seite'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: endController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Bis Seite'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final startPage = int.tryParse(startController.text);
+                final endPage = int.tryParse(endController.text);
+
+                if (startPage == null ||
+                    endPage == null ||
+                    startPage < 1 ||
+                    endPage > pageCount ||
+                    startPage > endPage) {
+                  return;
+                }
+
+                Navigator.pop(context, [startPage, endPage]);
+              },
+              child: const Text('Teilen'),
+            ),
+          ],
+        );
+      },
+    );
+
+    startController.dispose();
+    endController.dispose();
+
+    if (range == null) {
+      return;
+    }
+
+    final startPage = range[0];
+    final endPage = range[1];
+
+    try {
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: "Geteilte PDF speichern",
+        fileName: "seiten_${startPage}_bis_$endPage.pdf",
+        type: FileType.custom,
+        allowedExtensions: ["pdf"],
+      );
+
+      if (outputPath == null) {
+        return;
+      }
+
+      final pdfPath = outputPath.toLowerCase().endsWith(".pdf")
+          ? outputPath
+          : "$outputPath.pdf";
+
+      await pdfService.extractPageRange(
+        inputPath: inputPath,
+        outputPath: pdfPath,
+        startPage: startPage,
+        endPage: endPage,
+      );
+
+      showMessage(
+        'Seiten $startPage bis $endPage wurden als neue PDF gespeichert.',
+      );
+    } catch (error) {
+      showMessage('PDF konnte nicht geteilt werden: $error');
+    }
+  }
+
   Future<void> reorderCurrentPages(List<int> pageOrder) async {
     final inputPath = selectedFilePath;
 
@@ -616,58 +720,55 @@ class _HomeScreenState extends State<HomeScreen> {
             return;
           }
 
-            final imagePaths = detail.files
-                .map((file) => file.path)
-                .where((path) {
-                  final p = path.toLowerCase();
-                  return p.endsWith('.jpg') ||
-                      p.endsWith('.jpeg') ||
-                      p.endsWith('.png');
-                })
-                .toList();
+          final imagePaths = detail.files.map((file) => file.path).where((
+            path,
+          ) {
+            final p = path.toLowerCase();
+            return p.endsWith('.jpg') ||
+                p.endsWith('.jpeg') ||
+                p.endsWith('.png');
+          }).toList();
 
-            if (imagePaths.length > 1) {
-              final outputPath = await FilePicker.platform.saveFile(
-                dialogTitle: 'Bilder als PDF speichern',
-                fileName: 'bilder.pdf',
-                type: FileType.custom,
-                allowedExtensions: ['pdf'],
-              );
+          if (imagePaths.length > 1) {
+            final outputPath = await FilePicker.platform.saveFile(
+              dialogTitle: 'Bilder als PDF speichern',
+              fileName: 'bilder.pdf',
+              type: FileType.custom,
+              allowedExtensions: ['pdf'],
+            );
 
-              if (outputPath == null) {
-                return;
-              }
-
-              final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
-                  ? outputPath
-                  : '$outputPath.pdf';
-
-              try {
-                await pdfService.createPdfFromImages(
-                  imagePaths: imagePaths,
-                  outputPath: pdfPath,
-                );
-
-                final pages = pdfService.getPageCount(pdfPath);
-
-                setState(() {
-                  selectedFileName = File(pdfPath).uri.pathSegments.last;
-                  selectedFilePath = pdfPath;
-                  pageCount = pages;
-                  selectedPage = 1;
-                });
-
-                showMessage(
-                  '${imagePaths.length} Bilder erfolgreich in PDF umgewandelt.',
-                );
-              } catch (error) {
-                showMessage(
-                  'Bilder konnten nicht umgewandelt werden: $error',
-                );
-              }
-
+            if (outputPath == null) {
               return;
             }
+
+            final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
+                ? outputPath
+                : '$outputPath.pdf';
+
+            try {
+              await pdfService.createPdfFromImages(
+                imagePaths: imagePaths,
+                outputPath: pdfPath,
+              );
+
+              final pages = pdfService.getPageCount(pdfPath);
+
+              setState(() {
+                selectedFileName = File(pdfPath).uri.pathSegments.last;
+                selectedFilePath = pdfPath;
+                pageCount = pages;
+                selectedPage = 1;
+              });
+
+              showMessage(
+                '${imagePaths.length} Bilder erfolgreich in PDF umgewandelt.',
+              );
+            } catch (error) {
+              showMessage('Bilder konnten nicht umgewandelt werden: $error');
+            }
+
+            return;
+          }
           final droppedFile = detail.files.first;
           final droppedPath = droppedFile.path;
           final lowerPath = droppedPath.toLowerCase();
@@ -764,6 +865,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onExtractPage: selectedFilePath == null
                   ? null
                   : extractCurrentPage,
+              onSplitPdf: selectedFilePath == null ? null : splitPdfByPageRange,
               onPreviousPage: selectedFilePath == null || selectedPage <= 1
                   ? null
                   : goToPreviousPage,
