@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import "package:image/image.dart" as img;
+import "package:pdfrx/pdfrx.dart" as pdfrx;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class PdfService {
@@ -141,7 +143,6 @@ class PdfService {
     }
   }
 
-
   /// Extrahiert einen zusammenhängenden Seitenbereich in eine neue PDF-Datei.
   Future<void> extractPageRange({
     required String inputPath,
@@ -159,17 +160,13 @@ class PdfService {
           startPage > pageCount ||
           endPage > pageCount ||
           startPage > endPage) {
-        throw RangeError(
-          'Ungültiger Seitenbereich: $startPage bis $endPage',
-        );
+        throw RangeError('Ungültiger Seitenbereich: $startPage bis $endPage');
       }
 
       final targetDocument = PdfDocument();
 
       try {
-        for (var pageNumber = startPage;
-            pageNumber <= endPage;
-            pageNumber++) {
+        for (var pageNumber = startPage; pageNumber <= endPage; pageNumber++) {
           final sourcePage = sourceDocument.pages[pageNumber - 1];
           final pageSize = sourcePage.size;
           final template = sourcePage.createTemplate();
@@ -179,11 +176,7 @@ class PdfService {
 
           final targetPage = targetDocument.pages.add();
 
-          targetPage.graphics.drawPdfTemplate(
-            template,
-            Offset.zero,
-            pageSize,
-          );
+          targetPage.graphics.drawPdfTemplate(template, Offset.zero, pageSize);
         }
 
         final bytes = await targetDocument.save();
@@ -339,7 +332,6 @@ class PdfService {
     }
   }
 
-
   /// Erstellt aus mehreren Bildern eine mehrseitige PDF.
   Future<void> createPdfFromImages({
     required List<String> imagePaths,
@@ -388,6 +380,46 @@ class PdfService {
 
       final bytes = await document.save();
       await File(outputPath).writeAsBytes(bytes);
+    } finally {
+      document.dispose();
+    }
+  }
+
+  /// Speichert eine einzelne PDF-Seite als PNG-Bild.
+  Future<void> exportPageAsPng({
+    required String inputPath,
+    required String outputPath,
+    required int pageNumber,
+  }) async {
+    final document = await pdfrx.PdfDocument.openFile(inputPath);
+
+    try {
+      if (pageNumber < 1 || pageNumber > document.pages.length) {
+        throw RangeError("Ungültige Seitennummer: $pageNumber");
+      }
+
+      final page = document.pages[pageNumber - 1];
+
+      const scale = 200.0 / 72.0;
+
+      final pageImage = await page.render(
+        fullWidth: page.width * scale,
+        fullHeight: page.height * scale,
+        backgroundColor: 0xFFFFFFFF,
+      );
+
+      if (pageImage == null) {
+        throw Exception("Seite $pageNumber konnte nicht gerendert werden.");
+      }
+
+      try {
+        final image = pageImage.createImageNF();
+        final pngBytes = img.encodePng(image);
+
+        await File(outputPath).writeAsBytes(pngBytes);
+      } finally {
+        pageImage.dispose();
+      }
     } finally {
       document.dispose();
     }

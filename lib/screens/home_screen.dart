@@ -235,6 +235,42 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> exportCurrentPageAsPng() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage("Keine PDF-Datei geöffnet.");
+      return;
+    }
+
+    final outputPath = await FilePicker.platform.saveFile(
+      dialogTitle: "PDF-Seite als Bild speichern",
+      fileName: "seite_$selectedPage.png",
+      type: FileType.custom,
+      allowedExtensions: ["png"],
+    );
+
+    if (outputPath == null) {
+      return;
+    }
+
+    final pngPath = outputPath.toLowerCase().endsWith(".png")
+        ? outputPath
+        : "$outputPath.png";
+
+    try {
+      await pdfService.exportPageAsPng(
+        inputPath: inputPath,
+        outputPath: pngPath,
+        pageNumber: selectedPage,
+      );
+
+      showMessage("Seite $selectedPage wurde als PNG gespeichert.");
+    } catch (error) {
+      showMessage("Seite konnte nicht als Bild gespeichert werden: $error");
+    }
+  }
+
   Future<void> splitPdfByPageRange() async {
     final inputPath = selectedFilePath;
 
@@ -865,6 +901,9 @@ class _HomeScreenState extends State<HomeScreen> {
               onExtractPage: selectedFilePath == null
                   ? null
                   : extractCurrentPage,
+              onExportPageAsPng: selectedFilePath == null
+                  ? null
+                  : exportCurrentPageAsPng,
               onSplitPdf: selectedFilePath == null ? null : splitPdfByPageRange,
               onPreviousPage: selectedFilePath == null || selectedPage <= 1
                   ? null
