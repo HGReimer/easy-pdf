@@ -271,6 +271,111 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> exportPageRangeAsPng() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage('Keine PDF-Datei geöffnet.');
+      return;
+    }
+
+    final startController = TextEditingController(text: '1');
+    final endController = TextEditingController(text: pageCount.toString());
+
+    final range = await showDialog<List<int>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Seiten als Bilder speichern'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Seitenbereich 1 bis $pageCount auswählen'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: startController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Von Seite'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: endController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Bis Seite'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final startPage = int.tryParse(startController.text);
+                final endPage = int.tryParse(endController.text);
+
+                if (startPage == null ||
+                    endPage == null ||
+                    startPage < 1 ||
+                    endPage > pageCount ||
+                    startPage > endPage) {
+                  return;
+                }
+
+                Navigator.pop(context, [startPage, endPage]);
+              },
+              child: const Text('Exportieren'),
+            ),
+          ],
+        );
+      },
+    );
+
+    startController.dispose();
+    endController.dispose();
+
+    if (range == null) {
+      return;
+    }
+
+    final startPage = range[0];
+    final endPage = range[1];
+
+    final savePath = await FilePicker.platform.saveFile(
+      dialogTitle: "PNG-Bilder speichern unter",
+      fileName: "seiten_${startPage}_bis_$endPage.png",
+      type: FileType.custom,
+      allowedExtensions: ["png"],
+    );
+
+    if (savePath == null) {
+      return;
+    }
+
+    final normalizedPath = savePath.toLowerCase().endsWith(".png")
+        ? savePath.substring(0, savePath.length - 4)
+        : savePath;
+
+    try {
+      for (var pageNumber = startPage; pageNumber <= endPage; pageNumber++) {
+        final outputPath = "${normalizedPath}_Seite_$pageNumber.png";
+
+        await pdfService.exportPageAsPng(
+          inputPath: inputPath,
+          outputPath: outputPath,
+          pageNumber: pageNumber,
+        );
+      }
+
+      showMessage(
+        '${endPage - startPage + 1} Seite(n) wurden als PNG gespeichert.',
+      );
+    } catch (error) {
+      showMessage('Seiten konnten nicht als Bilder gespeichert werden: $error');
+    }
+  }
+
   Future<void> splitPdfByPageRange() async {
     final inputPath = selectedFilePath;
 
@@ -904,6 +1009,9 @@ class _HomeScreenState extends State<HomeScreen> {
               onExportPageAsPng: selectedFilePath == null
                   ? null
                   : exportCurrentPageAsPng,
+              onExportPageRangeAsPng: selectedFilePath == null
+                  ? null
+                  : exportPageRangeAsPng,
               onSplitPdf: selectedFilePath == null ? null : splitPdfByPageRange,
               onPreviousPage: selectedFilePath == null || selectedPage <= 1
                   ? null
