@@ -216,20 +216,29 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final savePath = await FilePicker.platform.saveFile(
+      dialogTitle: "Extrahierte Seite speichern unter",
+      fileName: "seite_$selectedPage.pdf",
+      type: FileType.custom,
+      allowedExtensions: ["pdf"],
+    );
+
+    if (savePath == null) {
+      return;
+    }
+
+    final outputPath = savePath.toLowerCase().endsWith(".pdf")
+        ? savePath
+        : "$savePath.pdf";
+
     try {
-      final dotIndex = inputPath.toLowerCase().lastIndexOf('.pdf');
-
-      final outputPath = dotIndex >= 0
-          ? '${inputPath.substring(0, dotIndex)}_seite_$selectedPage.pdf'
-          : '${inputPath}_seite_$selectedPage.pdf';
-
       await pdfService.extractPage(
         inputPath: inputPath,
         outputPath: outputPath,
         pageNumber: selectedPage,
       );
 
-      showMessage('Seite $selectedPage wurde extrahiert.');
+      showMessage("Seite $selectedPage wurde gespeichert.");
     } catch (error) {
       showMessage('Seite konnte nicht extrahiert werden: $error');
     }
