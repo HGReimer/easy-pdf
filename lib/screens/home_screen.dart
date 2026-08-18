@@ -221,6 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
       fileName: "seite_$selectedPage.pdf",
       type: FileType.custom,
       allowedExtensions: ["pdf"],
+      lockParentWindow: true,
     );
 
     if (savePath == null) {
@@ -257,6 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
       fileName: "seite_$selectedPage.png",
       type: FileType.custom,
       allowedExtensions: ["png"],
+      lockParentWindow: true,
     );
 
     if (outputPath == null) {
@@ -355,6 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
       dialogTitle: "PNG-Bilder speichern unter",
       fileName: "seiten_${startPage}_bis_$endPage.png",
       type: FileType.custom,
+      lockParentWindow: true,
       allowedExtensions: ["png"],
     );
 
@@ -462,6 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final outputPath = await FilePicker.platform.saveFile(
         dialogTitle: "Geteilte PDF speichern",
         fileName: "seiten_${startPage}_bis_$endPage.pdf",
+        lockParentWindow: true,
         type: FileType.custom,
         allowedExtensions: ["pdf"],
       );
@@ -587,6 +591,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final outputPath = await FilePicker.platform.saveFile(
       dialogTitle: 'Bild als PDF speichern',
+      lockParentWindow: true,
       fileName: '$baseName.pdf',
       type: FileType.custom,
       allowedExtensions: ['pdf'],
@@ -881,6 +886,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           if (imagePaths.length > 1) {
             final outputPath = await FilePicker.platform.saveFile(
+              lockParentWindow: true,
               dialogTitle: 'Bilder als PDF speichern',
               fileName: 'bilder.pdf',
               type: FileType.custom,
@@ -969,6 +975,7 @@ class _HomeScreenState extends State<HomeScreen> {
               fileName: '$baseName.pdf',
               type: FileType.custom,
               allowedExtensions: ['pdf'],
+              lockParentWindow: true,
             );
 
             if (outputPath == null) {
