@@ -12,7 +12,9 @@ import '../widgets/pdf_view_panel.dart';
 import '../widgets/thumbnail_panel.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.initialFilePath});
+
+  final String? initialFilePath;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -28,6 +30,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int pageCount = 0;
   int selectedPage = 1;
+  @override
+  void initState() {
+    super.initState();
+
+    final initialFilePath = widget.initialFilePath;
+    if (initialFilePath != null && initialFilePath.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        openPdfPath(initialFilePath);
+      });
+    }
+  }
+
+  Future<void> openPdfPath(String filePath) async {
+    try {
+      final pages = pdfService.getPageCount(filePath);
+
+      setState(() {
+        selectedFileName = File(filePath).uri.pathSegments.last;
+        selectedFilePath = filePath;
+        pageCount = pages;
+        selectedPage = 1;
+      });
+
+      debugPrint("PDF: $selectedFileName");
+      debugPrint("Seiten: $pageCount");
+    } catch (error) {
+      if (error.toString().toLowerCase().contains("passwortgeschützt")) {
+        showMessage(
+          "Diese PDF ist passwortgeschützt und kann derzeit nicht geöffnet werden.",
+        );
+      } else {
+        showMessage("PDF konnte nicht gelesen werden: $error");
+      }
+    }
+  }
 
   void startMergeMode() {
     setState(() {
@@ -86,29 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final filePath = file.path;
-
-    try {
-      final pages = pdfService.getPageCount(filePath);
-
-      setState(() {
-        selectedFileName = file.name;
-        selectedFilePath = filePath;
-        pageCount = pages;
-        selectedPage = 1;
-      });
-
-      debugPrint('PDF: $selectedFileName');
-      debugPrint('Seiten: $pageCount');
-    } catch (error) {
-      if (error.toString().toLowerCase().contains('passwortgeschützt')) {
-        showMessage(
-          'Diese PDF ist passwortgeschützt und kann derzeit nicht geöffnet werden.',
-        );
-      } else {
-        showMessage('PDF konnte nicht gelesen werden: $error');
-      }
-    }
+    await openPdfPath(file.path);
   }
 
   Future<void> pickPdfsAndMerge() async {
