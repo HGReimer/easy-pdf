@@ -878,12 +878,41 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void showAboutEasyPdf() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Easy PDF',
+      applicationVersion: '1.0.0',
+      applicationLegalese: '© 2026 Hans-Georg Reimer / EasySchmiede',
+      children: const [
+        SizedBox(height: 12),
+        Text('PDF-Dateien einfach öffnen, bearbeiten und organisieren.'),
+        SizedBox(height: 8),
+        Text('EasySchmiede – Software einfach gemacht.'),
+        SizedBox(height: 8),
+        Text(
+          'Verwendete Komponenten unterliegen ihren jeweiligen Lizenzbedingungen.',
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasDocument = selectedFilePath != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Easy PDF'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('Easy PDF'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: showAboutEasyPdf,
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Über Easy PDF',
+          ),
+        ],
+      ),
       body: DropTarget(
         onDragDone: (detail) async {
           if (detail.files.isEmpty) {

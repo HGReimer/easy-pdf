@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/home_screen.dart';
 
@@ -18,6 +19,13 @@ class EasyPdfApp extends StatelessWidget {
     return MaterialApp(
       title: 'Easy PDF',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('de', 'DE'),
+      supportedLocales: const [Locale('de', 'DE')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: HomeScreen(initialFilePath: initialFilePath),
     );
   }
