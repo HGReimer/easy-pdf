@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Easy PDF verwendet deinen Standort nur während der Dateiauswahl, wenn eine eingebundene Fotokomponente ihn zum Zugriff auf ausgewählte Bilder benötigt.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Easy PDF benötigt Zugriff auf die Kamera, wenn du ein Foto aufnehmen und für eine PDF-Datei verwenden möchtest.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../services/pdf_service.dart';
@@ -596,44 +595,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> pickImageAndCreatePdf() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png'],
-    );
-
-    if (result == null) {
-      return;
-    }
-
-    final file = result.files.single;
-    final imagePath = file.path;
-
-    if (imagePath == null) {
-      showMessage('Das ausgewählte Bild konnte nicht geöffnet werden.');
-      return;
-    }
-
-    final baseName = file.name.contains('.')
-        ? file.name.substring(0, file.name.lastIndexOf('.'))
-        : file.name;
-
-    final outputPath = await FilePicker.platform.saveFile(
-      dialogTitle: 'Bild als PDF speichern',
-      lockParentWindow: true,
-      fileName: '$baseName.pdf',
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
-
-    if (outputPath == null) {
-      return;
-    }
-
-    final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
-        ? outputPath
-        : '$outputPath.pdf';
-
     try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png'],
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+
+      final file = result.files.single;
+      final imagePath = file.path;
+
+      if (imagePath == null) {
+        showMessage('Das ausgewählte Bild konnte nicht geöffnet werden.');
+        return;
+      }
+
+      final rawBaseName = file.name.contains('.')
+          ? file.name.substring(0, file.name.lastIndexOf('.'))
+          : file.name;
+      final baseName = rawBaseName.trim().isEmpty ? 'bild' : rawBaseName;
+
+      final tempDirectory = await Directory.systemTemp.createTemp('easy_pdf_');
+      final pdfPath =
+          '${tempDirectory.path}${Platform.pathSeparator}$baseName.pdf';
+
       await pdfService.createPdfFromImage(
         imagePath: imagePath,
         outputPath: pdfPath,
@@ -642,13 +631,15 @@ class _HomeScreenState extends State<HomeScreen> {
       final pages = pdfService.getPageCount(pdfPath);
 
       setState(() {
-        selectedFileName = File(pdfPath).uri.pathSegments.last;
+        selectedFileName = '$baseName.pdf';
         selectedFilePath = pdfPath;
         pageCount = pages;
         selectedPage = 1;
       });
 
-      showMessage('Bild erfolgreich in PDF umgewandelt.');
+      showMessage(
+        'Bild erfolgreich in PDF umgewandelt. Zum Behalten bitte speichern.',
+      );
     } catch (error) {
       showMessage('Bild konnte nicht in PDF umgewandelt werden: $error');
     }
@@ -662,34 +653,40 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final saveLocation = await getSaveLocation(
-      suggestedName: selectedFileName ?? 'dokument.pdf',
-    );
-
-    if (saveLocation == null) {
-      return;
-    }
-
-    final outputPath = saveLocation.path;
-
-    final pdfPath = outputPath.toLowerCase().endsWith('.pdf')
-        ? outputPath
-        : '$outputPath.pdf';
-
     try {
-      if (File(inputPath).absolute.path == File(pdfPath).absolute.path) {
-        showMessage('Die PDF ist bereits unter diesem Namen gespeichert.');
+      final suggestedName = selectedFileName ?? 'dokument.pdf';
+      final pdfName = suggestedName.toLowerCase().endsWith('.pdf')
+          ? suggestedName
+          : '$suggestedName.pdf';
+      final bytes = await File(inputPath).readAsBytes();
+
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'PDF speichern',
+        lockParentWindow: true,
+        fileName: pdfName,
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        bytes: bytes,
+      );
+
+      if (outputPath == null) {
         return;
       }
 
-      await File(inputPath).copy(pdfPath);
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        final desktopPath = outputPath.toLowerCase().endsWith('.pdf')
+            ? outputPath
+            : '$outputPath.pdf';
 
-      setState(() {
-        selectedFilePath = pdfPath;
-        selectedFileName = File(pdfPath).uri.pathSegments.last;
-      });
+        await File(desktopPath).writeAsBytes(bytes, flush: true);
 
-      showMessage('PDF gespeichert: ${File(pdfPath).uri.pathSegments.last}');
+        setState(() {
+          selectedFilePath = desktopPath;
+          selectedFileName = File(desktopPath).uri.pathSegments.last;
+        });
+      }
+
+      showMessage('PDF erfolgreich gespeichert.');
     } catch (error) {
       showMessage('PDF konnte nicht gespeichert werden: $error');
     }

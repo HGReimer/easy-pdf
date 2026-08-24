@@ -40,87 +40,90 @@ class PdfToolbar extends StatelessWidget {
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       color: Colors.grey.shade100,
-      child: Row(
-        children: [
-          FilledButton.icon(
-            onPressed: onOpen,
-            icon: const Icon(Icons.folder_open),
-            label: const Text("Öffnen"),
-          ),
-          const SizedBox(width: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            FilledButton.icon(
+              onPressed: onOpen,
+              icon: const Icon(Icons.folder_open),
+              label: const Text("Öffnen"),
+            ),
+            const SizedBox(width: 8),
 
-          FilledButton.tonalIcon(
-            onPressed: onImageToPdf,
-            icon: const Icon(Icons.image),
-            label: const Text("Bild → PDF"),
-          ),
-          const SizedBox(width: 8),
+            FilledButton.tonalIcon(
+              onPressed: onImageToPdf,
+              icon: const Icon(Icons.image),
+              label: const Text("Bild → PDF"),
+            ),
+            const SizedBox(width: 8),
 
-          IconButton(
-            onPressed: onSave,
-            icon: const Icon(Icons.save),
-            tooltip: "Speichern",
-          ),
-          IconButton(
-            onPressed: onClose,
-            icon: const Icon(Icons.close),
-            tooltip: "PDF schließen",
-          ),
+            IconButton(
+              onPressed: onSave,
+              icon: const Icon(Icons.save),
+              tooltip: "Speichern",
+            ),
+            IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close),
+              tooltip: "PDF schließen",
+            ),
 
-          IconButton(
-            onPressed: onDeletePage,
-            icon: const Icon(Icons.delete),
-            tooltip: "Seite löschen",
-          ),
+            IconButton(
+              onPressed: onDeletePage,
+              icon: const Icon(Icons.delete),
+              tooltip: "Seite löschen",
+            ),
 
-          IconButton(
-            onPressed: onRotatePage,
-            icon: const Icon(Icons.rotate_right),
-            tooltip: "Seite drehen",
-          ),
+            IconButton(
+              onPressed: onRotatePage,
+              icon: const Icon(Icons.rotate_right),
+              tooltip: "Seite drehen",
+            ),
 
-          IconButton(
-            onPressed: onExtractPage,
-            icon: const Icon(Icons.content_cut),
-            tooltip: "Seite extrahieren",
-          ),
+            IconButton(
+              onPressed: onExtractPage,
+              icon: const Icon(Icons.content_cut),
+              tooltip: "Seite extrahieren",
+            ),
 
-          IconButton(
-            onPressed: onExportPageAsPng,
-            icon: const Icon(Icons.image_outlined),
-            tooltip: "Seite als Bild speichern",
-          ),
-          IconButton(
-            onPressed: onExportPageRangeAsPng,
-            icon: const Icon(Icons.collections_outlined),
-            tooltip: "Seiten als Bilder speichern",
-          ),
+            IconButton(
+              onPressed: onExportPageAsPng,
+              icon: const Icon(Icons.image_outlined),
+              tooltip: "Seite als Bild speichern",
+            ),
+            IconButton(
+              onPressed: onExportPageRangeAsPng,
+              icon: const Icon(Icons.collections_outlined),
+              tooltip: "Seiten als Bilder speichern",
+            ),
 
-          IconButton(
-            onPressed: onSplitPdf,
-            icon: const Icon(Icons.call_split),
-            tooltip: "PDF teilen",
-          ),
+            IconButton(
+              onPressed: onSplitPdf,
+              icon: const Icon(Icons.call_split),
+              tooltip: "PDF teilen",
+            ),
 
-          const Spacer(),
+            const SizedBox(width: 16),
 
-          IconButton(
-            onPressed: onPreviousPage,
-            icon: const Icon(Icons.chevron_left),
-            tooltip: "Vorherige Seite",
-          ),
+            IconButton(
+              onPressed: onPreviousPage,
+              icon: const Icon(Icons.chevron_left),
+              tooltip: "Vorherige Seite",
+            ),
 
-          Text(
-            pageCount > 0 ? "$selectedPage / $pageCount" : "– / –",
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+            Text(
+              pageCount > 0 ? "$selectedPage / $pageCount" : "– / –",
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
 
-          IconButton(
-            onPressed: onNextPage,
-            icon: const Icon(Icons.chevron_right),
-            tooltip: "Nächste Seite",
-          ),
-        ],
+            IconButton(
+              onPressed: onNextPage,
+              icon: const Icon(Icons.chevron_right),
+              tooltip: "Nächste Seite",
+            ),
+          ],
+        ),
       ),
     );
   }
