@@ -653,11 +653,77 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final suggestedName = selectedFileName ?? 'dokument.pdf';
+    final initialName = suggestedName.toLowerCase().endsWith('.pdf')
+        ? suggestedName.substring(0, suggestedName.length - 4)
+        : suggestedName;
+
+    final nameController = TextEditingController(text: initialName);
+    nameController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: initialName.length,
+    );
+
+    final enteredName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('PDF speichern'),
+          content: TextField(
+            controller: nameController,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: 'Dateiname',
+              suffixText: '.pdf',
+            ),
+            onSubmitted: (value) {
+              if (value.trim().isNotEmpty) {
+                Navigator.of(dialogContext).pop(value);
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = nameController.text.trim();
+                if (value.isNotEmpty) {
+                  Navigator.of(dialogContext).pop(value);
+                }
+              },
+              child: const Text('Weiter'),
+            ),
+          ],
+        );
+      },
+    );
+
+    nameController.dispose();
+
+    if (enteredName == null) {
+      return;
+    }
+
+    var baseName = enteredName.trim();
+
+    if (baseName.toLowerCase().endsWith('.pdf')) {
+      baseName = baseName.substring(0, baseName.length - 4);
+    }
+
+    baseName = baseName.replaceAll('/', '_').replaceAll(':', '_');
+
+    if (baseName.isEmpty) {
+      showMessage('Bitte einen Dateinamen eingeben.');
+      return;
+    }
+
+    final pdfName = '$baseName.pdf';
+
     try {
-      final suggestedName = selectedFileName ?? 'dokument.pdf';
-      final pdfName = suggestedName.toLowerCase().endsWith('.pdf')
-          ? suggestedName
-          : '$suggestedName.pdf';
       final bytes = await File(inputPath).readAsBytes();
 
       final outputPath = await FilePicker.platform.saveFile(
@@ -684,9 +750,13 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedFilePath = desktopPath;
           selectedFileName = File(desktopPath).uri.pathSegments.last;
         });
+      } else {
+        setState(() {
+          selectedFileName = pdfName;
+        });
       }
 
-      showMessage('PDF erfolgreich gespeichert.');
+      showMessage('PDF „$pdfName“ wurde erfolgreich gespeichert.');
     } catch (error) {
       showMessage('PDF konnte nicht gespeichert werden: $error');
     }
