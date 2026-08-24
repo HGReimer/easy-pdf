@@ -115,15 +115,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> pickPdf() async {
-    const pdfTypeGroup = XTypeGroup(label: 'PDF', extensions: ['pdf']);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false,
+      );
 
-    final file = await openFile(acceptedTypeGroups: [pdfTypeGroup]);
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
 
-    if (file == null) {
-      return;
+      final path = result.files.first.path;
+
+      if (path == null) {
+        showMessage('Die ausgewählte PDF-Datei konnte nicht geöffnet werden.');
+        return;
+      }
+
+      await openPdfPath(path);
+    } catch (error) {
+      showMessage('PDF-Datei konnte nicht geöffnet werden: $error');
     }
-
-    await openPdfPath(file.path);
   }
 
   Future<void> pickPdfsAndMerge() async {
