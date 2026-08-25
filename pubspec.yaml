@@ -43,6 +43,7 @@ dependencies:
   image: ^4.8.0
   flutter_localizations:
     sdk: flutter
+  printing: ^5.14.3
 
 dev_dependencies:
   flutter_test:

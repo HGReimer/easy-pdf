@@ -6,6 +6,7 @@ class PdfToolbar extends StatelessWidget {
     required this.onOpen,
     required this.onImageToPdf,
     this.onSave,
+    this.onPrint,
     this.onClose,
     this.onDeletePage,
     this.onRotatePage,
@@ -22,6 +23,7 @@ class PdfToolbar extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onImageToPdf;
   final VoidCallback? onSave;
+  final VoidCallback? onPrint;
   final VoidCallback? onClose;
   final VoidCallback? onDeletePage;
   final VoidCallback? onRotatePage;
@@ -62,6 +64,11 @@ class PdfToolbar extends StatelessWidget {
               onPressed: onSave,
               icon: const Icon(Icons.save),
               tooltip: "Speichern",
+            ),
+            IconButton(
+              onPressed: onPrint,
+              icon: const Icon(Icons.print),
+              tooltip: "Drucken",
             ),
             IconButton(
               onPressed: onClose,

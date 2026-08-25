@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 
 import '../services/pdf_service.dart';
 import '../widgets/pdf_information.dart';
@@ -762,6 +763,31 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> printCurrentPdf() async {
+    final inputPath = selectedFilePath;
+
+    if (inputPath == null) {
+      showMessage("Keine PDF-Datei geöffnet.");
+      return;
+    }
+
+    try {
+      final bytes = await File(inputPath).readAsBytes();
+      final printed = await Printing.layoutPdf(
+        name: selectedFileName ?? "Easy PDF.pdf",
+        onLayout: (_) async => bytes,
+      );
+
+      showMessage(
+        printed
+            ? "Der Druckauftrag wurde übergeben."
+            : "Der Druckvorgang wurde abgebrochen.",
+      );
+    } catch (error) {
+      showMessage("PDF konnte nicht gedruckt werden: $error");
+    }
+  }
+
   Future<void> confirmDeletePage([int? pageNumber]) async {
     final pageToDelete = pageNumber ?? selectedPage;
     final inputPath = selectedFilePath;
@@ -1140,6 +1166,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onOpen: pickPdf,
               onImageToPdf: pickImageAndCreatePdf,
               onSave: selectedFilePath == null ? null : saveCurrentPdf,
+              onPrint: selectedFilePath == null ? null : printCurrentPdf,
               onClose: selectedFilePath == null ? null : closeCurrentPdf,
               onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
               onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
