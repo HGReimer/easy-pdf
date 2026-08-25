@@ -45,6 +45,12 @@ class _PdfViewPanelState extends State<PdfViewPanel> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(covariant PdfViewPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
 

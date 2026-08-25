@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
+import 'package:flutter/services.dart';
 
 import '../services/pdf_service.dart';
 import '../widgets/pdf_information.dart';
@@ -22,6 +22,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final PdfService pdfService = PdfService();
+
+  static const MethodChannel _printChannel = MethodChannel(
+    "de.easyschmiede.easypdf/print",
+  );
 
   String? selectedFileName;
   String? selectedFilePath;
@@ -120,6 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false,
+        lockParentWindow: true,
       );
 
       if (result == null || result.files.isEmpty) {
@@ -144,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
       allowMultiple: true,
+      lockParentWindow: true,
     );
 
     if (result == null) {
@@ -600,32 +606,37 @@ class _HomeScreenState extends State<HomeScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png'],
-        allowMultiple: false,
+        allowMultiple: true,
+        lockParentWindow: true,
       );
 
       if (result == null || result.files.isEmpty) {
         return;
       }
 
-      final file = result.files.single;
-      final imagePath = file.path;
+      final file = result.files.first;
+      final imagePaths = result.files
+          .where((file) => file.path != null)
+          .map((file) => file.path!)
+          .toList();
 
-      if (imagePath == null) {
-        showMessage('Das ausgewählte Bild konnte nicht geöffnet werden.');
+      if (imagePaths.isEmpty) {
+        showMessage("Die ausgewählten Bilder konnten nicht geöffnet werden.");
         return;
       }
 
       final rawBaseName = file.name.contains('.')
           ? file.name.substring(0, file.name.lastIndexOf('.'))
           : file.name;
-      final baseName = rawBaseName.trim().isEmpty ? 'bild' : rawBaseName;
+      final singleBaseName = rawBaseName.trim().isEmpty ? "bild" : rawBaseName;
+      final baseName = imagePaths.length > 1 ? "bilder" : singleBaseName;
 
       final tempDirectory = await Directory.systemTemp.createTemp('easy_pdf_');
       final pdfPath =
           '${tempDirectory.path}${Platform.pathSeparator}$baseName.pdf';
 
-      await pdfService.createPdfFromImage(
-        imagePath: imagePath,
+      await pdfService.createPdfFromImages(
+        imagePaths: imagePaths,
         outputPath: pdfPath,
       );
 
@@ -639,7 +650,9 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       showMessage(
-        'Bild erfolgreich in PDF umgewandelt. Zum Behalten bitte speichern.',
+        imagePaths.length == 1
+            ? "Bild erfolgreich in PDF umgewandelt. Zum Behalten bitte speichern."
+            : "${imagePaths.length} Bilder erfolgreich in eine PDF umgewandelt. Zum Behalten bitte speichern.",
       );
     } catch (error) {
       showMessage('Bild konnte nicht in PDF umgewandelt werden: $error');
@@ -771,18 +784,88 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    if (Platform.isIOS) {
+      try {
+        final bytes = await File(inputPath).readAsBytes();
+        final printed = await _printChannel.invokeMethod<bool>("printPdf", {
+          "bytes": bytes,
+          "name": selectedFileName ?? "Easy PDF.pdf",
+        });
+
+        if (!mounted) {
+          return;
+        }
+
+        showMessage(
+          printed == true
+              ? "Der Druckauftrag wurde übergeben."
+              : "Der Druckvorgang wurde abgebrochen.",
+        );
+      } catch (error) {
+        showMessage("PDF konnte nicht gedruckt werden: $error");
+      }
+      return;
+    }
+
+    if (!Platform.isLinux) {
+      showMessage("Drucken wird auf diesem System noch nicht unterstützt.");
+      return;
+    }
+
     try {
-      final bytes = await File(inputPath).readAsBytes();
-      final printed = await Printing.layoutPdf(
-        name: selectedFileName ?? "Easy PDF.pdf",
-        onLayout: (_) async => bytes,
+      final status = await Process.run("lpstat", ["-a"]);
+      final printers =
+          status.stdout
+              .toString()
+              .split("\n")
+              .map((line) => line.trim())
+              .where((line) => line.isNotEmpty)
+              .map((line) => line.split(RegExp(r"\s+")).first)
+              .toSet()
+              .toList()
+            ..sort();
+
+      if (printers.isEmpty) {
+        showMessage(
+          "Es wurde noch kein Drucker eingerichtet. Bitte zuerst in Linux einen Drucker hinzufügen.",
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      final printer = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return SimpleDialog(
+            title: const Text("Drucker auswählen"),
+            children: printers
+                .map(
+                  (printer) => SimpleDialogOption(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop(printer);
+                    },
+                    child: Text(printer),
+                  ),
+                )
+                .toList(),
+          );
+        },
       );
 
-      showMessage(
-        printed
-            ? "Der Druckauftrag wurde übergeben."
-            : "Der Druckvorgang wurde abgebrochen.",
-      );
+      if (printer == null) {
+        return;
+      }
+
+      final result = await Process.run("lp", ["-d", printer, inputPath]);
+
+      if (result.exitCode == 0) {
+        showMessage("Der Druckauftrag wurde an „$printer“ übergeben.");
+      } else {
+        showMessage("Der Druckauftrag konnte nicht übergeben werden.");
+      }
     } catch (error) {
       showMessage("PDF konnte nicht gedruckt werden: $error");
     }
@@ -973,6 +1056,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: PdfViewPanel(
+                  key: ValueKey(selectedFilePath!),
                   filePath: selectedFilePath!,
                   selectedPage: selectedPage,
                 ),
