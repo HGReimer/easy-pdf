@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
 import '../services/pdf_service.dart';
@@ -1074,14 +1075,31 @@ class _HomeScreenState extends State<HomeScreen> {
       applicationName: 'Easy PDF',
       applicationVersion: '1.0.0',
       applicationLegalese: '© 2026 Hans-Georg Reimer / EasySchmiede',
-      children: const [
-        SizedBox(height: 12),
-        Text('PDF-Dateien einfach öffnen, bearbeiten und organisieren.'),
-        SizedBox(height: 8),
-        Text('EasySchmiede – Software einfach gemacht.'),
-        SizedBox(height: 8),
-        Text(
+      children: [
+        const SizedBox(height: 12),
+        const Text('PDF-Dateien einfach öffnen, bearbeiten und organisieren.'),
+        const SizedBox(height: 8),
+        const Text('EasySchmiede – Software einfach gemacht.'),
+        const SizedBox(height: 8),
+        const Text(
           'Verwendete Komponenten unterliegen ihren jeweiligen Lizenzbedingungen.',
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: () async {
+            final opened = await launchUrl(
+              Uri.parse(
+                'https://hgreimer.github.io/easyschmiede/datenschutz-easy-pdf.html',
+              ),
+              mode: LaunchMode.externalApplication,
+            );
+
+            if (!opened && mounted) {
+              showMessage('Die Datenschutzseite konnte nicht geöffnet werden.');
+            }
+          },
+          icon: const Icon(Icons.privacy_tip_outlined),
+          label: const Text('Datenschutzerklärung'),
         ),
       ],
     );
