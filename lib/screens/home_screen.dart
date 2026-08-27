@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
 import '../services/pdf_service.dart';
+import '../services/purchase_service.dart';
 import '../widgets/pdf_information.dart';
 import '../widgets/pdf_toolbar.dart';
 import '../widgets/pdf_view_panel.dart';
@@ -23,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final PdfService pdfService = PdfService();
+  final PurchaseService _purchaseService = PurchaseService();
 
   static const MethodChannel _printChannel = MethodChannel(
     "de.easyschmiede.easypdf/print",
@@ -39,12 +41,28 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
+    _purchaseService.addListener(_handlePurchaseServiceChanged);
+    _purchaseService.initialize();
+
     final initialFilePath = widget.initialFilePath;
     if (initialFilePath != null && initialFilePath.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         openPdfPath(initialFilePath);
       });
     }
+  }
+
+  void _handlePurchaseServiceChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _purchaseService.removeListener(_handlePurchaseServiceChanged);
+    _purchaseService.dispose();
+    super.dispose();
   }
 
   Future<void> openPdfPath(String filePath) async {
@@ -72,6 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void startMergeMode() {
+    if (!_purchaseService.isProUnlocked) {
+      showProDialog();
+      return;
+    }
+
     setState(() {
       mergeMode = true;
       mergePdfPaths.clear();
@@ -603,6 +626,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> pickImageAndCreatePdf() async {
+    if (!_purchaseService.isProUnlocked) {
+      await showProDialog();
+      return;
+    }
+
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1052,8 +1080,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 filePath: selectedFilePath!,
                 selectedPage: selectedPage,
                 onPageSelected: selectPage,
-                onPageReordered: reorderCurrentPages,
-                onPageDelete: confirmDeletePage,
+                onPageReordered: (pageOrder) =>
+                    _runProAction(() => reorderCurrentPages(pageOrder)),
+                onPageDelete: (pageNumber) =>
+                    _runProAction(() => confirmDeletePage(pageNumber)),
               ),
               Expanded(
                 child: PdfViewPanel(
@@ -1066,6 +1096,112 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _runProAction(VoidCallback action) {
+    if (_purchaseService.isProUnlocked) {
+      action();
+    } else {
+      showProDialog();
+    }
+  }
+
+  Future<void> showProDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AnimatedBuilder(
+          animation: _purchaseService,
+          builder: (context, child) {
+            final isPro = _purchaseService.isProUnlocked;
+            final pending = _purchaseService.purchasePending;
+            final price = _purchaseService.proPrice;
+            final error = _purchaseService.errorMessage;
+
+            if (isPro) {
+              return AlertDialog(
+                title: const Text('Easy PDF Pro'),
+                content: const Text(
+                  'Easy PDF Pro ist aktiv. Alle Funktionen stehen zur Verfügung.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Schließen'),
+                  ),
+                ],
+              );
+            }
+
+            return AlertDialog(
+              title: const Text('Easy PDF Pro'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'PDF-Dateien kannst du kostenlos öffnen, anzeigen '
+                    'und durchsuchen.',
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Pro schaltet Speichern, Drucken, Bild-zu-PDF, '
+                    'Löschen, Drehen, Extrahieren, Bildexport und '
+                    'PDF-Teilung frei.',
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Einmaliger Kauf – kein Abonnement.',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  if (_purchaseService.isLoading) ...[
+                    const SizedBox(height: 16),
+                    const LinearProgressIndicator(),
+                  ],
+                  if (error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      error,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Schließen'),
+                ),
+                TextButton(
+                  onPressed: _purchaseService.storeAvailable && !pending
+                      ? _purchaseService.restorePurchases
+                      : null,
+                  child: const Text('Käufe wiederherstellen'),
+                ),
+                FilledButton.icon(
+                  onPressed:
+                      _purchaseService.storeAvailable &&
+                          price != null &&
+                          !pending
+                      ? _purchaseService.buyPro
+                      : null,
+                  icon: const Icon(Icons.workspace_premium),
+                  label: Text(
+                    pending
+                        ? 'Bitte warten …'
+                        : price == null
+                        ? 'Pro kaufen'
+                        : 'Pro kaufen – $price',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1115,6 +1251,17 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            onPressed: showProDialog,
+            icon: Icon(
+              _purchaseService.isProUnlocked
+                  ? Icons.workspace_premium
+                  : Icons.lock_outline,
+            ),
+            tooltip: _purchaseService.isProUnlocked
+                ? 'Easy PDF Pro ist aktiv'
+                : 'Easy PDF Pro freischalten',
+          ),
+          IconButton(
             onPressed: showAboutEasyPdf,
             icon: const Icon(Icons.info_outline),
             tooltip: 'Über Easy PDF',
@@ -1135,6 +1282,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 p.endsWith('.jpeg') ||
                 p.endsWith('.png');
           }).toList();
+
+          if (imagePaths.isNotEmpty && !_purchaseService.isProUnlocked) {
+            await showProDialog();
+            return;
+          }
 
           if (imagePaths.length > 1) {
             final outputPath = await FilePicker.platform.saveFile(
@@ -1266,22 +1418,32 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             PdfToolbar(
               onOpen: pickPdf,
-              onImageToPdf: pickImageAndCreatePdf,
-              onSave: selectedFilePath == null ? null : saveCurrentPdf,
-              onPrint: selectedFilePath == null ? null : printCurrentPdf,
+              onImageToPdf: () => _runProAction(pickImageAndCreatePdf),
+              onSave: selectedFilePath == null
+                  ? null
+                  : () => _runProAction(saveCurrentPdf),
+              onPrint: selectedFilePath == null
+                  ? null
+                  : () => _runProAction(printCurrentPdf),
               onClose: selectedFilePath == null ? null : closeCurrentPdf,
-              onDeletePage: selectedFilePath == null ? null : confirmDeletePage,
-              onRotatePage: selectedFilePath == null ? null : rotateCurrentPage,
+              onDeletePage: selectedFilePath == null
+                  ? null
+                  : () => _runProAction(confirmDeletePage),
+              onRotatePage: selectedFilePath == null
+                  ? null
+                  : () => _runProAction(rotateCurrentPage),
               onExtractPage: selectedFilePath == null
                   ? null
-                  : extractCurrentPage,
+                  : () => _runProAction(extractCurrentPage),
               onExportPageAsPng: selectedFilePath == null
                   ? null
-                  : exportCurrentPageAsPng,
+                  : () => _runProAction(exportCurrentPageAsPng),
               onExportPageRangeAsPng: selectedFilePath == null
                   ? null
-                  : exportPageRangeAsPng,
-              onSplitPdf: selectedFilePath == null ? null : splitPdfByPageRange,
+                  : () => _runProAction(exportPageRangeAsPng),
+              onSplitPdf: selectedFilePath == null
+                  ? null
+                  : () => _runProAction(splitPdfByPageRange),
               onPreviousPage: selectedFilePath == null || selectedPage <= 1
                   ? null
                   : goToPreviousPage,
