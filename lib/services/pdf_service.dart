@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -26,6 +27,16 @@ class PdfService {
   /// Gibt die Anzahl der Seiten zurück.
   int getPageCount(String path) {
     final document = open(path);
+
+    final pageCount = document.pages.count;
+
+    document.dispose();
+
+    return pageCount;
+  }
+
+  int getPageCountFromBytes(Uint8List bytes) {
+    final document = PdfDocument(inputBytes: bytes);
 
     final pageCount = document.pages.count;
 

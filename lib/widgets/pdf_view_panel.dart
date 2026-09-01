@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
@@ -8,10 +9,12 @@ class PdfViewPanel extends StatefulWidget {
     super.key,
     required this.filePath,
     required this.selectedPage,
+    this.fileBytes,
   });
 
   final String filePath;
   final int selectedPage;
+  final Uint8List? fileBytes;
 
   @override
   State<PdfViewPanel> createState() => _PdfViewPanelState();
@@ -100,10 +103,12 @@ class _PdfViewPanelState extends State<PdfViewPanel> {
           ),
         ),
         Expanded(
-          child: SfPdfViewer.file(
-            File(widget.filePath),
-            controller: _controller,
-          ),
+          child: kIsWeb && widget.fileBytes != null
+              ? SfPdfViewer.memory(widget.fileBytes!, controller: _controller)
+              : SfPdfViewer.file(
+                  File(widget.filePath),
+                  controller: _controller,
+                ),
         ),
       ],
     );

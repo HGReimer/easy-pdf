@@ -23,7 +23,7 @@ class PurchaseService extends ChangeNotifier {
   bool _purchasePending = false;
   String? _errorMessage;
 
-  bool get usesAppleStore => Platform.isIOS;
+  bool get usesAppleStore => !kIsWeb && Platform.isIOS;
 
   // Unter Linux bleibt die vollständige App für Entwicklung und Tests frei.
   bool get isProUnlocked =>

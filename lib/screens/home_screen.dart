@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -32,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? selectedFileName;
   String? selectedFilePath;
+  Uint8List? selectedFileBytes;
   bool mergeMode = false;
   final List<String> mergePdfPaths = [];
 
@@ -72,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         selectedFileName = File(filePath).uri.pathSegments.last;
         selectedFilePath = filePath;
+        selectedFileBytes = null;
         pageCount = pages;
         selectedPage = 1;
       });
@@ -100,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
       mergePdfPaths.clear();
       selectedFileName = null;
       selectedFilePath = null;
+      selectedFileBytes = null;
       pageCount = 0;
       selectedPage = 1;
     });
@@ -149,13 +153,37 @@ class _HomeScreenState extends State<HomeScreen> {
         allowedExtensions: ['pdf'],
         allowMultiple: false,
         lockParentWindow: true,
+        withData: kIsWeb,
       );
 
       if (result == null || result.files.isEmpty) {
         return;
       }
 
-      final path = result.files.first.path;
+      final pickedFile = result.files.first;
+
+      if (kIsWeb) {
+        final bytes = pickedFile.bytes;
+
+        if (bytes == null) {
+          showMessage('Die ausgewählte PDF-Datei konnte nicht gelesen werden.');
+          return;
+        }
+
+        final pages = pdfService.getPageCountFromBytes(bytes);
+
+        setState(() {
+          selectedFileName = pickedFile.name;
+          selectedFilePath = pickedFile.name;
+          selectedFileBytes = bytes;
+          pageCount = pages;
+          selectedPage = 1;
+        });
+
+        return;
+      }
+
+      final path = pickedFile.path;
 
       if (path == null) {
         showMessage('Die ausgewählte PDF-Datei konnte nicht geöffnet werden.');
@@ -1066,6 +1094,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget buildDocumentView() {
+    final viewer = PdfViewPanel(
+      key: ValueKey(selectedFileBytes ?? selectedFilePath),
+      filePath: selectedFilePath!,
+      fileBytes: selectedFileBytes,
+      selectedPage: selectedPage,
+    );
+
     return Column(
       children: [
         PdfInformation(
@@ -1074,26 +1109,22 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedPage: selectedPage,
         ),
         Expanded(
-          child: Row(
-            children: [
-              ThumbnailPanel(
-                filePath: selectedFilePath!,
-                selectedPage: selectedPage,
-                onPageSelected: selectPage,
-                onPageReordered: (pageOrder) =>
-                    _runProAction(() => reorderCurrentPages(pageOrder)),
-                onPageDelete: (pageNumber) =>
-                    _runProAction(() => confirmDeletePage(pageNumber)),
-              ),
-              Expanded(
-                child: PdfViewPanel(
-                  key: ValueKey(selectedFilePath!),
-                  filePath: selectedFilePath!,
-                  selectedPage: selectedPage,
+          child: kIsWeb
+              ? viewer
+              : Row(
+                  children: [
+                    ThumbnailPanel(
+                      filePath: selectedFilePath!,
+                      selectedPage: selectedPage,
+                      onPageSelected: selectPage,
+                      onPageReordered: (pageOrder) =>
+                          _runProAction(() => reorderCurrentPages(pageOrder)),
+                      onPageDelete: (pageNumber) =>
+                          _runProAction(() => confirmDeletePage(pageNumber)),
+                    ),
+                    Expanded(child: viewer),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -1418,30 +1449,34 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             PdfToolbar(
               onOpen: pickPdf,
-              onImageToPdf: () => _runProAction(pickImageAndCreatePdf),
-              onSave: selectedFilePath == null
+              onImageToPdf: kIsWeb
+                  ? () => showMessage(
+                      'Bild → PDF wird für die Browserversion vorbereitet.',
+                    )
+                  : () => _runProAction(pickImageAndCreatePdf),
+              onSave: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(saveCurrentPdf),
-              onPrint: selectedFilePath == null
+              onPrint: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(printCurrentPdf),
               onClose: selectedFilePath == null ? null : closeCurrentPdf,
-              onDeletePage: selectedFilePath == null
+              onDeletePage: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(confirmDeletePage),
-              onRotatePage: selectedFilePath == null
+              onRotatePage: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(rotateCurrentPage),
-              onExtractPage: selectedFilePath == null
+              onExtractPage: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(extractCurrentPage),
-              onExportPageAsPng: selectedFilePath == null
+              onExportPageAsPng: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(exportCurrentPageAsPng),
-              onExportPageRangeAsPng: selectedFilePath == null
+              onExportPageRangeAsPng: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(exportPageRangeAsPng),
-              onSplitPdf: selectedFilePath == null
+              onSplitPdf: selectedFilePath == null || kIsWeb
                   ? null
                   : () => _runProAction(splitPdfByPageRange),
               onPreviousPage: selectedFilePath == null || selectedPage <= 1
