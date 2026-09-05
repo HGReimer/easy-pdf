@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 
 import '../services/pdf_service.dart';
 import 'drawing_canvas_screen.dart';
+import 'text_pdf_screen.dart';
 import '../services/purchase_service.dart';
 import '../widgets/pdf_information.dart';
 import '../widgets/pdf_toolbar.dart';
@@ -654,6 +655,47 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> createPdfFromText() async {
+    final result = await Navigator.of(context).push<TextPdfResult>(
+      MaterialPageRoute(builder: (context) => const TextPdfScreen()),
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    try {
+      final tempDirectory = await Directory.systemTemp.createTemp(
+        'easy_pdf_text_',
+      );
+
+      final pdfPath =
+          '${tempDirectory.path}${Platform.pathSeparator}textdokument.pdf';
+
+      await pdfService.createPdfFromText(
+        outputPath: pdfPath,
+        title: result.title,
+        deltaJson: result.deltaJson,
+      );
+
+      final pages = pdfService.getPageCount(pdfPath);
+
+      setState(() {
+        selectedFileName = result.title.trim().isEmpty
+            ? 'textdokument.pdf'
+            : '${result.title.trim().replaceAll(' ', '_')}.pdf';
+        selectedFilePath = pdfPath;
+        selectedFileBytes = null;
+        pageCount = pages;
+        selectedPage = 1;
+      });
+
+      showMessage('PDF aus Text erstellt. Zum Behalten bitte speichern.');
+    } catch (error) {
+      showMessage('PDF aus Text konnte nicht erstellt werden: $error');
+    }
+  }
+
   Future<void> createPdfFromDrawing() async {
     final drawingBytes = await Navigator.of(context).push<Uint8List>(
       MaterialPageRoute(builder: (context) => const DrawingCanvasScreen()),
@@ -1077,8 +1119,70 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: const Text('PDF öffnen'),
                 ),
                 FilledButton.icon(
-                  onPressed: () => _runProAction(createPdfFromDrawing),
-                  icon: const Icon(Icons.draw_outlined),
+                  onPressed: () async {
+                    if (!_purchaseService.isProUnlocked) {
+                      await showProDialog();
+                      return;
+                    }
+
+                    if (!mounted) return;
+
+                    final choice = await showModalBottomSheet<String>(
+                      context: context,
+                      builder: (context) {
+                        return SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.text_fields),
+                                  title: const Text('PDF aus Text'),
+                                  subtitle: const Text(
+                                    'Titel und Text eingeben',
+                                  ),
+                                  onTap: () => Navigator.pop(context, 'text'),
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.draw_outlined),
+                                  title: const Text('PDF aus Zeichnung'),
+                                  subtitle: const Text(
+                                    'Freihand zeichnen und als PDF speichern',
+                                  ),
+                                  onTap: () =>
+                                      Navigator.pop(context, 'drawing'),
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.image_outlined),
+                                  title: const Text('PDF aus Bildern'),
+                                  subtitle: const Text(
+                                    'Ein oder mehrere Bilder umwandeln',
+                                  ),
+                                  onTap: () => Navigator.pop(context, 'images'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+
+                    if (!mounted || choice == null) return;
+
+                    switch (choice) {
+                      case 'text':
+                        await createPdfFromText();
+                        break;
+                      case 'drawing':
+                        await createPdfFromDrawing();
+                        break;
+                      case 'images':
+                        await pickImageAndCreatePdf();
+                        break;
+                    }
+                  },
+                  icon: const Icon(Icons.add_box_outlined),
                   label: const Text('PDF erstellen'),
                 ),
                 if (mergeMode)
