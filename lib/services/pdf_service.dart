@@ -443,24 +443,85 @@ class PdfService {
     required String title,
     required String deltaJson,
   }) async {
+    final data = jsonDecode(deltaJson);
+
+    if (data is! Map) {
+      throw FormatException('Ungültiges Textformat.');
+    }
+
+    final body = data['text']?.toString().trim() ?? '';
+
+    if (body.isEmpty) {
+      throw ArgumentError('Der Text darf nicht leer sein.');
+    }
+
+    final fontFamily = data['fontFamily']?.toString() ?? 'Helvetica';
+
+    final fontSizeRaw = data['fontSize'];
+    final fontSize = fontSizeRaw is num
+        ? fontSizeRaw.toDouble()
+        : double.tryParse(fontSizeRaw?.toString() ?? '') ?? 12.0;
+
+    final bold = data['bold'] == true;
+    final italic = data['italic'] == true;
+    final underline = data['underline'] == true;
+    final alignment = data['alignment']?.toString() ?? 'left';
+
+    PdfFontFamily family;
+
+    switch (fontFamily.toLowerCase()) {
+      case 'times':
+        family = PdfFontFamily.timesRoman;
+        break;
+      case 'courier':
+        family = PdfFontFamily.courier;
+        break;
+      default:
+        family = PdfFontFamily.helvetica;
+    }
+
+    final styles = <PdfFontStyle>[];
+
+    if (bold) {
+      styles.add(PdfFontStyle.bold);
+    }
+
+    if (italic) {
+      styles.add(PdfFontStyle.italic);
+    }
+
+    if (underline) {
+      styles.add(PdfFontStyle.underline);
+    }
+
+    PdfTextAlignment pdfAlignment;
+
+    switch (alignment) {
+      case 'center':
+        pdfAlignment = PdfTextAlignment.center;
+        break;
+      case 'right':
+        pdfAlignment = PdfTextAlignment.right;
+        break;
+      case 'justify':
+        pdfAlignment = PdfTextAlignment.justify;
+        break;
+      default:
+        pdfAlignment = PdfTextAlignment.left;
+    }
+
     final document = PdfDocument();
 
     try {
       document.pageSettings.size = PdfPageSize.a4;
       document.pageSettings.margins.all = 40;
 
-      PdfPage page = document.pages.add();
+      final page = document.pages.add();
 
       final pageWidth = page.getClientSize().width;
       final pageHeight = page.getClientSize().height;
 
       double y = 0;
-
-      PdfPage newPage() {
-        page = document.pages.add();
-        y = 0;
-        return page;
-      }
 
       if (title.trim().isNotEmpty) {
         final titleFont = PdfStandardFont(
@@ -469,215 +530,29 @@ class PdfService {
           style: PdfFontStyle.bold,
         );
 
-        final result = PdfTextElement(
+        final titleResult = PdfTextElement(
           text: title.trim(),
           font: titleFont,
           format: PdfStringFormat(alignment: PdfTextAlignment.center),
         ).draw(page: page, bounds: Rect.fromLTWH(0, y, pageWidth, 60));
 
-        y = (result?.bounds.bottom ?? 40) + 18;
+        y = (titleResult?.bounds.bottom ?? 40) + 18;
       }
 
-      final decoded = jsonDecode(deltaJson);
+      final bodyFont = PdfStandardFont(
+        family,
+        fontSize,
+        multiStyle: styles.isEmpty ? null : styles,
+      );
 
-      if (decoded is! List) {
-        throw FormatException('Ungültiges Textformat.');
-      }
-
-      final paragraphs = <_PdfRichParagraph>[];
-      var currentRuns = <_PdfRichRun>[];
-
-      for (final rawOp in decoded) {
-        if (rawOp is! Map) {
-          continue;
-        }
-
-        final insert = rawOp['insert'];
-
-        if (insert is! String) {
-          continue;
-        }
-
-        final attributesRaw = rawOp['attributes'];
-        final attributes = attributesRaw is Map
-            ? Map<String, dynamic>.from(attributesRaw)
-            : <String, dynamic>{};
-
-        final parts = insert.split('\n');
-
-        for (var i = 0; i < parts.length; i++) {
-          final part = parts[i];
-
-          if (part.isNotEmpty) {
-            currentRuns.add(
-              _PdfRichRun(
-                text: part,
-                bold: attributes['bold'] == true,
-                italic: attributes['italic'] == true,
-                underline: attributes['underline'] == true,
-                fontFamily: attributes['font']?.toString(),
-                fontSize: _pdfFontSizeFromQuill(attributes['size']),
-              ),
-            );
-          }
-
-          if (i < parts.length - 1) {
-            paragraphs.add(
-              _PdfRichParagraph(
-                runs: currentRuns,
-                alignment: _pdfAlignmentFromQuill(
-                  attributes['align']?.toString(),
-                ),
-              ),
-            );
-
-            currentRuns = <_PdfRichRun>[];
-          }
-        }
-      }
-
-      if (currentRuns.isNotEmpty) {
-        paragraphs.add(
-          _PdfRichParagraph(
-            runs: currentRuns,
-            alignment: PdfTextAlignment.left,
-          ),
-        );
-      }
-
-      for (final paragraph in paragraphs) {
-        if (paragraph.runs.isEmpty) {
-          y += 14;
-
-          if (y > pageHeight - 20) {
-            newPage();
-          }
-
-          continue;
-        }
-
-        final tokens = <_PdfRichToken>[];
-
-        for (final run in paragraph.runs) {
-          final pieces = run.text.split(RegExp(r'(\s+)'));
-
-          for (final piece in pieces) {
-            if (piece.isEmpty) {
-              continue;
-            }
-
-            tokens.add(_PdfRichToken(text: piece, run: run));
-          }
-        }
-
-        var line = <_PdfRichToken>[];
-        double lineWidth = 0;
-
-        Future<void> drawLine(
-          List<_PdfRichToken> lineTokens, {
-          required bool isLastLine,
-        }) async {
-          if (lineTokens.isEmpty) {
-            return;
-          }
-
-          double maxHeight = 0;
-          double measuredWidth = 0;
-          var spaceCount = 0;
-
-          final measurements = <double>[];
-
-          for (final token in lineTokens) {
-            final font = _pdfFontForRun(token.run);
-            final size = font.measureString(token.text);
-
-            measurements.add(size.width);
-            measuredWidth += size.width;
-
-            if (size.height > maxHeight) {
-              maxHeight = size.height;
-            }
-
-            if (token.text.trim().isEmpty) {
-              spaceCount++;
-            }
-          }
-
-          final lineHeight = maxHeight + 5;
-
-          if (y + lineHeight > pageHeight) {
-            newPage();
-          }
-
-          double x = 0;
-          double extraSpace = 0;
-
-          switch (paragraph.alignment) {
-            case PdfTextAlignment.center:
-              x = (pageWidth - measuredWidth) / 2;
-              break;
-
-            case PdfTextAlignment.right:
-              x = pageWidth - measuredWidth;
-              break;
-
-            case PdfTextAlignment.justify:
-              if (!isLastLine && spaceCount > 0) {
-                extraSpace = (pageWidth - measuredWidth) / spaceCount;
-              }
-              break;
-
-            case PdfTextAlignment.left:
-              break;
-          }
-
-          for (var i = 0; i < lineTokens.length; i++) {
-            final token = lineTokens[i];
-            final font = _pdfFontForRun(token.run);
-            final width = measurements[i];
-
-            page.graphics.drawString(
-              token.text,
-              font,
-              brush: PdfBrushes.black,
-              bounds: Rect.fromLTWH(x, y, width + 3, lineHeight),
-            );
-
-            x += width;
-
-            if (token.text.trim().isEmpty) {
-              x += extraSpace;
-            }
-          }
-
-          y += lineHeight;
-        }
-
-        for (final token in tokens) {
-          final font = _pdfFontForRun(token.run);
-          final tokenWidth = font.measureString(token.text).width;
-
-          if (line.isNotEmpty && lineWidth + tokenWidth > pageWidth) {
-            await drawLine(List<_PdfRichToken>.from(line), isLastLine: false);
-
-            line = <_PdfRichToken>[];
-            lineWidth = 0;
-          }
-
-          line.add(token);
-          lineWidth += tokenWidth;
-        }
-
-        if (line.isNotEmpty) {
-          await drawLine(line, isLastLine: true);
-        }
-
-        y += 8;
-
-        if (y > pageHeight - 20) {
-          newPage();
-        }
-      }
+      PdfTextElement(
+        text: body,
+        font: bodyFont,
+        format: PdfStringFormat(alignment: pdfAlignment, lineSpacing: 4),
+      ).draw(
+        page: page,
+        bounds: Rect.fromLTWH(0, y, pageWidth, pageHeight - y),
+      );
 
       final bytes = await document.save();
 
@@ -697,116 +572,4 @@ class PdfService {
 
     document.dispose();
   }
-}
-
-class _PdfRichRun {
-  const _PdfRichRun({
-    required this.text,
-    required this.bold,
-    required this.italic,
-    required this.underline,
-    required this.fontFamily,
-    required this.fontSize,
-  });
-
-  final String text;
-  final bool bold;
-  final bool italic;
-  final bool underline;
-  final String? fontFamily;
-  final double fontSize;
-}
-
-class _PdfRichParagraph {
-  const _PdfRichParagraph({required this.runs, required this.alignment});
-
-  final List<_PdfRichRun> runs;
-  final PdfTextAlignment alignment;
-}
-
-class _PdfRichToken {
-  const _PdfRichToken({required this.text, required this.run});
-
-  final String text;
-  final _PdfRichRun run;
-}
-
-double _pdfFontSizeFromQuill(dynamic value) {
-  if (value == null) {
-    return 12;
-  }
-
-  if (value is num) {
-    return value.toDouble();
-  }
-
-  final text = value.toString().toLowerCase();
-
-  final numeric = double.tryParse(text);
-
-  if (numeric != null && numeric > 0) {
-    return numeric;
-  }
-
-  switch (text) {
-    case 'small':
-      return 9;
-    case 'large':
-      return 18;
-    case 'huge':
-      return 24;
-    default:
-      return 12;
-  }
-}
-
-PdfTextAlignment _pdfAlignmentFromQuill(String? value) {
-  switch (value) {
-    case 'center':
-      return PdfTextAlignment.center;
-    case 'right':
-      return PdfTextAlignment.right;
-    case 'justify':
-      return PdfTextAlignment.justify;
-    default:
-      return PdfTextAlignment.left;
-  }
-}
-
-PdfFontFamily _pdfFontFamilyFromQuill(String? value) {
-  final font = value?.toLowerCase() ?? '';
-
-  if (font.contains('times') ||
-      font.contains('serif') ||
-      font.contains('georgia')) {
-    return PdfFontFamily.timesRoman;
-  }
-
-  if (font.contains('courier') || font.contains('mono')) {
-    return PdfFontFamily.courier;
-  }
-
-  return PdfFontFamily.helvetica;
-}
-
-PdfFont _pdfFontForRun(_PdfRichRun run) {
-  final styles = <PdfFontStyle>[];
-
-  if (run.bold) {
-    styles.add(PdfFontStyle.bold);
-  }
-
-  if (run.italic) {
-    styles.add(PdfFontStyle.italic);
-  }
-
-  if (run.underline) {
-    styles.add(PdfFontStyle.underline);
-  }
-
-  return PdfStandardFont(
-    _pdfFontFamilyFromQuill(run.fontFamily),
-    run.fontSize,
-    multiStyle: styles.isEmpty ? null : styles,
-  );
 }

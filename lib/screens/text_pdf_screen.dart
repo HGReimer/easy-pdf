@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_quill/flutter_quill.dart';
 
 class TextPdfResult {
   const TextPdfResult({required this.title, required this.deltaJson});
@@ -19,48 +18,82 @@ class TextPdfScreen extends StatefulWidget {
 
 class _TextPdfScreenState extends State<TextPdfScreen> {
   final _titleController = TextEditingController();
+  final _bodyController = TextEditingController();
 
-  late final QuillController _controller;
-  late final FocusNode _focusNode;
-  late final ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = QuillController.basic();
-    _focusNode = FocusNode();
-    _scrollController = ScrollController();
-  }
+  String _fontFamily = 'Helvetica';
+  double _fontSize = 12;
+  bool _bold = false;
+  bool _italic = false;
+  bool _underline = false;
+  TextAlign _alignment = TextAlign.left;
 
   @override
   void dispose() {
     _titleController.dispose();
-    _focusNode.dispose();
-    _scrollController.dispose();
-    _controller.dispose();
+    _bodyController.dispose();
     super.dispose();
   }
 
   void _submit() {
-    final plainText = _controller.document.toPlainText().trim();
+    final body = _bodyController.text.trim();
 
-    if (plainText.isEmpty) {
+    if (body.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Bitte Text eingeben.')));
       return;
     }
 
-    final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
+    final data = {
+      'text': body,
+      'fontFamily': _fontFamily,
+      'fontSize': _fontSize,
+      'bold': _bold,
+      'italic': _italic,
+      'underline': _underline,
+      'alignment': _alignment.name,
+    };
 
-    Navigator.pop(
-      context,
-      TextPdfResult(title: _titleController.text.trim(), deltaJson: deltaJson),
+    final result = TextPdfResult(
+      title: _titleController.text.trim(),
+      deltaJson: jsonEncode(data),
+    );
+
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop(result);
+    });
+  }
+
+  Widget _formatButton({
+    required IconData icon,
+    required String tooltip,
+    required bool selected,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      isSelected: selected,
+      onPressed: onPressed,
+      icon: Icon(icon),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final textStyle = TextStyle(
+      fontFamily: _fontFamily == 'Helvetica' ? null : _fontFamily,
+      fontSize: _fontSize,
+      fontWeight: _bold ? FontWeight.bold : FontWeight.normal,
+      fontStyle: _italic ? FontStyle.italic : FontStyle.normal,
+      decoration: _underline ? TextDecoration.underline : TextDecoration.none,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('PDF aus Text erstellen'),
@@ -87,54 +120,140 @@ class _TextPdfScreenState extends State<TextPdfScreen> {
               ),
             ),
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: QuillSimpleToolbar(
-              controller: _controller,
-              config: const QuillSimpleToolbarConfig(
-                showFontFamily: true,
-                showFontSize: true,
-                showBoldButton: true,
-                showItalicButton: true,
-                showUnderLineButton: true,
-                showAlignmentButtons: true,
-                showLeftAlignment: true,
-                showCenterAlignment: true,
-                showRightAlignment: true,
-                showJustifyAlignment: true,
-                showUndo: true,
-                showRedo: true,
-                showClearFormat: true,
-                multiRowsDisplay: true,
-                showStrikeThrough: false,
-                showInlineCode: false,
-                showColorButton: false,
-                showBackgroundColorButton: false,
-                showHeaderStyle: false,
-                showListNumbers: false,
-                showListBullets: false,
-                showListCheck: false,
-                showCodeBlock: false,
-                showQuote: false,
-                showIndent: false,
-                showLink: false,
-                showSearchButton: false,
-                showDirection: false,
-                showSubscript: false,
-                showSuperscript: false,
-              ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                DropdownButton<String>(
+                  value: _fontFamily,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Helvetica',
+                      child: Text('Helvetica'),
+                    ),
+                    DropdownMenuItem(value: 'Times', child: Text('Times')),
+                    DropdownMenuItem(value: 'Courier', child: Text('Courier')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _fontFamily = value;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(width: 12),
+                DropdownButton<double>(
+                  value: _fontSize,
+                  items: const [
+                    DropdownMenuItem(value: 8, child: Text('8')),
+                    DropdownMenuItem(value: 10, child: Text('10')),
+                    DropdownMenuItem(value: 12, child: Text('12')),
+                    DropdownMenuItem(value: 14, child: Text('14')),
+                    DropdownMenuItem(value: 16, child: Text('16')),
+                    DropdownMenuItem(value: 18, child: Text('18')),
+                    DropdownMenuItem(value: 24, child: Text('24')),
+                    DropdownMenuItem(value: 32, child: Text('32')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _fontSize = value;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                _formatButton(
+                  icon: Icons.format_bold,
+                  tooltip: 'Fett',
+                  selected: _bold,
+                  onPressed: () {
+                    setState(() {
+                      _bold = !_bold;
+                    });
+                  },
+                ),
+                _formatButton(
+                  icon: Icons.format_italic,
+                  tooltip: 'Kursiv',
+                  selected: _italic,
+                  onPressed: () {
+                    setState(() {
+                      _italic = !_italic;
+                    });
+                  },
+                ),
+                _formatButton(
+                  icon: Icons.format_underline,
+                  tooltip: 'Unterstrichen',
+                  selected: _underline,
+                  onPressed: () {
+                    setState(() {
+                      _underline = !_underline;
+                    });
+                  },
+                ),
+                _formatButton(
+                  icon: Icons.format_align_left,
+                  tooltip: 'Linksbündig',
+                  selected: _alignment == TextAlign.left,
+                  onPressed: () {
+                    setState(() {
+                      _alignment = TextAlign.left;
+                    });
+                  },
+                ),
+                _formatButton(
+                  icon: Icons.format_align_center,
+                  tooltip: 'Zentriert',
+                  selected: _alignment == TextAlign.center,
+                  onPressed: () {
+                    setState(() {
+                      _alignment = TextAlign.center;
+                    });
+                  },
+                ),
+                _formatButton(
+                  icon: Icons.format_align_right,
+                  tooltip: 'Rechtsbündig',
+                  selected: _alignment == TextAlign.right,
+                  onPressed: () {
+                    setState(() {
+                      _alignment = TextAlign.right;
+                    });
+                  },
+                ),
+                _formatButton(
+                  icon: Icons.format_align_justify,
+                  tooltip: 'Blocksatz',
+                  selected: _alignment == TextAlign.justify,
+                  onPressed: () {
+                    setState(() {
+                      _alignment = TextAlign.justify;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
-          const Divider(height: 1),
+          const Divider(),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: QuillEditor.basic(
-                controller: _controller,
-                focusNode: _focusNode,
-                scrollController: _scrollController,
-                config: const QuillEditorConfig(padding: EdgeInsets.all(16)),
+              child: TextField(
+                controller: _bodyController,
+                expands: true,
+                minLines: null,
+                maxLines: null,
+                textAlign: _alignment,
+                textAlignVertical: TextAlignVertical.top,
+                style: textStyle,
+                decoration: const InputDecoration(
+                  hintText: 'Hier den Text eingeben ...',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
           ),

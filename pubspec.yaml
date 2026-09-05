@@ -46,7 +46,6 @@ dependencies:
   url_launcher: ^6.3.2
   in_app_purchase: ^3.3.0
   shared_preferences: ^2.5.5
-  flutter_quill: ^11.5.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

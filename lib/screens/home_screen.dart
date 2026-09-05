@@ -859,7 +859,9 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
 
-    nameController.dispose();
+    // Der Dialog wird nach Navigator.pop noch animiert abgebaut.
+    // Deshalb den Controller erst nach der Abschlussanimation freigeben.
+    Future.delayed(const Duration(milliseconds: 500), nameController.dispose);
 
     if (enteredName == null) {
       return;
