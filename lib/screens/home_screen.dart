@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
 import '../services/pdf_service.dart';
+import 'drawing_canvas_screen.dart';
 import '../services/purchase_service.dart';
 import '../widgets/pdf_information.dart';
 import '../widgets/pdf_toolbar.dart';
@@ -653,6 +654,49 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> createPdfFromDrawing() async {
+    final drawingBytes = await Navigator.of(context).push<Uint8List>(
+      MaterialPageRoute(builder: (context) => const DrawingCanvasScreen()),
+    );
+
+    if (drawingBytes == null || drawingBytes.isEmpty) {
+      return;
+    }
+
+    try {
+      final tempDirectory = await Directory.systemTemp.createTemp(
+        'easy_pdf_drawing_',
+      );
+
+      final imagePath =
+          '${tempDirectory.path}${Platform.pathSeparator}zeichnung.png';
+
+      final pdfPath =
+          '${tempDirectory.path}${Platform.pathSeparator}zeichnung.pdf';
+
+      await File(imagePath).writeAsBytes(drawingBytes, flush: true);
+
+      await pdfService.createPdfFromImage(
+        imagePath: imagePath,
+        outputPath: pdfPath,
+      );
+
+      final pages = pdfService.getPageCount(pdfPath);
+
+      setState(() {
+        selectedFileName = 'zeichnung.pdf';
+        selectedFilePath = pdfPath;
+        selectedFileBytes = null;
+        pageCount = pages;
+        selectedPage = 1;
+      });
+
+      showMessage('PDF aus Zeichnung erstellt. Zum Behalten bitte speichern.');
+    } catch (error) {
+      showMessage('PDF aus Zeichnung konnte nicht erstellt werden: $error');
+    }
+  }
+
   Future<void> pickImageAndCreatePdf() async {
     if (!_purchaseService.isProUnlocked) {
       await showProDialog();
@@ -1031,6 +1075,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: pickPdf,
                   icon: const Icon(Icons.folder_open),
                   label: const Text('PDF öffnen'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => _runProAction(createPdfFromDrawing),
+                  icon: const Icon(Icons.draw_outlined),
+                  label: const Text('PDF erstellen'),
                 ),
                 if (mergeMode)
                   FilledButton.icon(
